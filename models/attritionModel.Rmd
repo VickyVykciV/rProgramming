@@ -39,7 +39,7 @@ This presentation contains,
 ## Data Summary
 
 ```{r, echo=FALSE}
-attritionData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Logit-Simmons.csv/HR_Employee_Attrition_Data.csv", header = T)
+attritionData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/HR_Employee_Attrition_Data.csv", header = T)
 attach(attritionData)
 ```
 - Dimensions of Data
