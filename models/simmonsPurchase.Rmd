@@ -1,0 +1,262 @@
+---
+title: "Logistic Regression Model"
+author: "Group 15"
+date: "January 20, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(lmtest)
+library(pscl)
+library(MASS)
+library(Deducer)
+library(fmsb)
+```
+
+Simmons conducted a study by sending out 100 catalogs, 50 to customers who have a
+Simmons credit card and 50 to customers who do not have the card. At the end of the test
+period, Simmons noted for each of the 100 customers:
+
+1) the amount the customer spent last year at Simmons,
+2) whether the customer had a Simmons credit card, and
+3) whether the customer made a $200 purchase
+
+First we read the data and have a priliminary idea about what the data is 
+
+
+```{r, echo = F}
+Simmon_Data <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Logit-Simmons.csv", header = T)
+head(Simmon_Data)
+attach(Simmon_Data)
+str(Simmon_Data)
+plot(Simmon_Data$Spending,Simmon_Data$Card,col=as.factor(Simmon_Data$Purchase),xlab="Spending",ylab="Card_Flag")
+```
+
+We need to predict if the customer will purchase more than $200. We can do this by building a logistic model using purachase as the binary dependent variables and identify the attributes of it. We will calculates odds ration and derive the estimates of each independent variables
+
+```{r, echo = F}
+#Predictor variables
+Predictor_Var <- as.matrix(Simmon_Data[,c(2,3)])
+
+#Add ones to Predictor Variables
+Predictor_Var <- cbind(rep(1,nrow(Predictor_Var)),Predictor_Var)
+
+#Response variable
+Y <- as.matrix(Simmon_Data$Purchase)
+```
+
+```{r, echo = F}
+#Sigmoid function
+sigmoid <- function(z)
+{
+g <- 1/(1+exp(-z))
+return(g)
+}
+```
+
+###Cost Function:###
+
+```{r, echo = F}
+#Cost Function
+cost <- function(theta)
+{
+m <- nrow(Predictor_Var)
+g <- sigmoid(Predictor_Var%*%theta)
+J<-(1/m)*sum((-Y*log(g)) - ((1-Y)*log(1-g)))
+return(J)
+}
+```
+
+```{r, echo = F}
+#Intial theta
+initial_theta <- rep(0,ncol(Predictor_Var))
+
+#Cost at inital theta
+cost(initial_theta)*100
+```
+The initial cost/error is **69.31**, which is high. Now we have to minimize theta for which our error function in minimized.
+
+Once we have theta, our probability function (sigmoid) is ready and we can feed it any any value for Spending or Card and it will give us its probability whether the customer will make a purchased of $200. 
+
+####Optimizing Theta Value(Reducing cost/error):####
+
+Using the cost function, lets find the optimum theta value for the full model
+
+```{r, echo = F}
+# Derive theta using gradient descent using optim function
+theta_optim <- optim(par=initial_theta,fn=cost)
+
+#set theta
+theta <- theta_optim$par
+
+#cost at optimal value of the theta
+FullModel<-theta_optim$value*100
+FullModel
+```
+
+Now the optimum theta value for the full model, has been derived as **60.48**
+
+###Deriving the probability:###
+
+Now using the theta, lets dervive the probability of a customer making a purchase of $200.
+
+```{r, echo = F}
+for (i in 1:nrow(Simmon_Data))
+{
+  Simmon_Data$Prob[i]<- sigmoid(t(c(Predictor_Var[i,1],Predictor_Var[i,2],Predictor_Var[i,3]))%*%theta)
+}
+
+head(Simmon_Data, 10)
+```
+
+If Probability greater than 0.5 then 1 else 0 which means will purchase more than $200 else will not purchase more than $200 respectivel
+
+```{r, echo = F}
+Simmon_Data$Purchase_Predicted[Simmon_Data$Prob >0.5]<-1
+Simmon_Data$Purchase_Predicted[Simmon_Data$Prob <=0.5]<-0
+
+head(Simmon_Data, 10)
+
+```
+
+###Confusion Matrix:###
+
+Given the fact that, now we have predicted the purchase, let's see how well the model the model has predicted
+
+```{r, echo = F}
+df<-table(Simmon_Data$Purchase,Simmon_Data$Purchase_Predicted)
+confusionMatrix(df)
+```
+
+###Interpretation of the solver output:###
+
+Estimates of the Full model are,
+
+```{r, echo = F}
+theta_optim$par
+```
+
+Calculating the impact of odds, probability and the relative importance of each independent variable and also interprete the results 
+
+####Odds:####
+
+```{r, echo = F}
+Spending<-exp(theta_optim$par[2])
+Card<-exp(theta_optim$par[3])
+odds<-cbind(Spending,Card)
+odds
+```
+- The odds that a customer will spend $200 next time will increase by **1.4 times** if customer's annual spending increases by $1000
+
+- The odds that a customer will spend $200 next time will increase by **3 times** if the customer holds the Simmons card over a customer not holding the Simmons card
+
+####Probability:####
+
+```{r, echo = F}
+Spending<-(Spending/(1+Spending))
+Card<-(Card/(1+Card))
+Probability<-cbind(Spending,Card)
+Probability
+```
+- 
+
+- 
+
+####Relative Importance:####
+
+```{r, echo = F}
+Spending<-(Spending/(Card+Spending))*100
+Card <-(Card/(Card+Spending))*100
+Rel_Imp<-cbind(Spending,Card)
+Rel_Imp
+```
+- 
+
+- 
+
+###Conclusion:###
+
+**Build Intercept Model:**
+
+```{r, echo = F}
+###
+Predictor_Var<-as.matrix(rep(1,nrow(Simmon_Data)))
+initial_theta <-rep(1,nrow(Predictor_Var))
+
+#Cost at inital theta
+#Cost Function
+cost <- function(theta)
+{
+m <- length(Predictor_Var)
+g <- sigmoid(Predictor_Var%*%theta)
+J <- (1/m)*sum((-Y*(log(g)[,1])) - ((1-Y)*(log(1-g)[,1])))
+return(J)
+}
+Cost_Val<-cost(initial_theta)
+# Derive theta using gradient descent using optim function
+theta_optim <- optim(par=c(1,0,0),fn=cost)
+
+#set theta
+theta <- theta_optim$par
+
+#cost at optimal value of the theta
+Intercept<-theta_optim$value*100
+Intercept
+```
+
+The optimum theta value for the Intercept model, has been derived as **67.31**
+
+
+Let's verify whether full model or intercept model is better
+
+####Chi-Square Value:####
+
+```{r, echo = F}
+chi_value<-(Intercept-FullModel)*2
+chi_value
+```
+
+####P Value:####
+
+```{r, echo = F}
+P_value<-pchisq(chi_value,2,lower.tail=FALSE)
+P_value
+```
+
+####Akaike information criterion (AIC):####
+
+```{r, echo = F}
+Full_Model <- (2*FullModel)+(2*3)
+
+Intercept_Model <- (2*Intercept)+2
+
+AIC <- cbind(Full_Model, Intercept_Model)
+
+AIC
+```
+
+####Pseudo R-Sqaure:####
+
+```{r, echo = F}
+Pseudo_R2 <- (1-(FullModel/Intercept))
+Pseudo_R2
+```
+
+**10%** of the un-certainity present in the Intercept model, has been explained by the Full model
+
+A Simple way woule be 
+
+```{r, echo = F}
+logit_1<-glm(Purchase~Spending+Card,data = Simmon_Data,family = binomial)
+summary(logit_1)
+lrtest(logit_1)
+pR2(logit_1)
+
+```
+
+```{r, echo = F}
+rocplot(logit_1)
+NagelkerkeR2(logit_1)
+```
