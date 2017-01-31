@@ -433,12 +433,9 @@ t.test(YearsWithCurrManager~Attrition)
 
 ## Hypothesis Testing
 
-- Convert Attrition which is categorical variable into a numeric factor value
-
 ```{r,echo = F}
 attritionData$Attrition_Num <- factor(attritionData$Attrition, levels = c("Yes","No"), labels = c(1, 0))
 attritionData$Attrition_Num<-as.factor(attritionData$Attrition_Num)
-prop.table(table(attritionData$Attrition_Num))
 ```
 
 **Categorical Variables:**
@@ -467,196 +464,6 @@ CategoricalFeatures <- do.call('rbind',lapply(categoricalVarNames,WoE,data = att
 (CategoricalFeatures <- CategoricalFeatures[order(-CategoricalFeatures$IV),])
 ```
 
-## Binning the Continuous Variables 
-
-CHAID model can be created only using Categorical vaiables, so to include all the significant (Continuous/Categorical) variables, we are converting all the continuous varaibles into categorical varibles by binning them.
-
-**Binning Age**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$Age)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$Age_Bin<-cut(attritionData$Age,seq(18,60,7),labels = c("18-25","25-32","32-39","39-46","46-53","53-60"))
-prop.table(table(attritionData$Age_Bin,attritionData$Attrition)) ###Not significant trend
-```
-
-**Binning Daily Rate**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$DailyRate)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$DailyRate_Bin<-cut(attritionData$DailyRate,seq(100,1500,140),labels = c("100-240","240-380","380-520","520-660","660-800","800-940","940-1080","1080-1220","1220-1360","1360+"))
-prop.table(table(attritionData$DailyRate_Bin,attritionData$Attrition)) ###Not significant trend
-```
-
-**Binning Distance From Home**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$DistanceFromHome)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$Dist_Bin<-cut(attritionData$DistanceFromHome,seq(0,30,5),labels = c("<5","5-10","10-15","15-20","20-25","25+"))
-prop.table(table(attritionData$Dist_Bin,attritionData$Attrition)) ###significant trend
-```
-
-**Binning Hourly Rate**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$HourlyRate)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$Hr_Rate_Bin<-cut(attritionData$HourlyRate,seq(30,105,15),right = F,labels = c("30-45","45-60","60-75","75-90","90-105"))
-prop.table(table(attritionData$Hr_Rate_Bin,attritionData$Attrition)) ###Not significant trend
-```
-
-**Binning Monthly Income**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$MonthlyIncome)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$Income_Bin<-cut(attritionData$MonthlyIncome,seq(1000,21000,2500),labels = c("1k-3.5k","3.5k-6k","6k-8.5k","8.5k-11k","11.5k - 13.5k","13.5k-16k","16k-18.5k","18.5k+"))
-prop.table(table(attritionData$Income_Bin,attritionData$Attrition)) ###significant trend
-```
-
-**Binning Monthly Rate**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$MonthlyRate)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$Rate_Bin<-cut(attritionData$MonthlyRate,seq(2000,27000,2500),labels = c("2k-4.5k","4.5k-7k","7k-9.5k","9.5k-12k","12k - 14.5k","14.5k-17k","17k-19.5k","19.5k-22k","22k-24.5k","24.5k+"))
-prop.table(table(attritionData$Rate_Bin,attritionData$Attrition)) ###Not significant trend
-```
-
-**Binning year with current Manager**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$YearsWithCurrManager)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$YearsWithCurrManager_Bin <- cut(attritionData$YearsWithCurrManager, seq(0,20,5), right = F, 
-                                        lables = c("0-5", "5-10", "10-15", "15-20"))
-prop.table(table(attritionData$YearsWithCurrManager_Bin, attritionData$Attrition))##Significant
-```
-
-**Binning Last Promotion**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$YearsSinceLastPromotion)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$YearsSinceLastPromotion_Bin <- cut(attritionData$YearsSinceLastPromotion, seq(0, 16, 4), right = F, 
-                                           labels = c("0-4", "4-8", "8-12", "12-16"))
-prop.table(table(attritionData$YearsSinceLastPromotion_Bin, attritionData$Attrition))##Significant
-```
-
-**Binning Years In current role**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$YearsInCurrentRole)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$YearsInCurrentRole_Bin <- cut(attritionData$YearsInCurrentRole, seq(0, 20, 5), right = F, 
-                                      labels = c("0-5", "5-10", "10-15", "15-20"))
-prop.table(table(attritionData$YearsInCurrentRole_Bin, attritionData$Attrition))##Significant
-```
-
-**Binning Years at company**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$YearsAtCompany)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$YearsAtCompany_Bin <- cut(attritionData$YearsAtCompany, seq(0, 42, 7), right = F, 
-                                  labels = c("0-7", "7-14", "14-21", "21-28", "28-35", "35-42"))
-prop.table(table(attritionData$YearsAtCompany_Bin, attritionData$Attrition))##Significant
-```
-
-**Binning Work Experience**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$TotalWorkingYears)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$TotalWorkingYears_Bin <- cut(attritionData$TotalWorkingYears, seq(0, 42, 7), right = F, 
-                                     labels = c("0-7", "7-14", "14-21", "21-28", "28-35", "35-42"))
-prop.table(table(attritionData$TotalWorkingYears_Bin, attritionData$Attrition))##Significant
-```
-
-**Binning Percentage Salary Hike**
-
-- Range
-
-```{r,echo = FALSE}
-range(attritionData$PercentSalaryHike)
-```
-
-- Trend
-
-```{r,echo = FALSE}
-attritionData$PercentSalaryHike_Bin <- cut(attritionData$PercentSalaryHike, seq(10, 25, 3), 
-                                     labels = c("10-13", "13-16", "16-19", "19-22", "22-25"))
-prop.table(table(attritionData$PercentSalaryHike_Bin, attritionData$Attrition))##Significant
-```
-
 ## Sampling the data 
 
 - The data is imbalanced thus sampling needs to done taking this constrain in mind while sampling the data into - *Development & Hold Out*
@@ -665,9 +472,24 @@ prop.table(table(attritionData$PercentSalaryHike_Bin, attritionData$Attrition))#
 set.seed(2015)
 smp_size <- floor(0.70 * nrow(attritionData))
 train_ind <- sample(seq_len(nrow(attritionData)), size = smp_size)
-Dev_Sample <- attritionData[train_ind, -c(33:44)]
-Hold_Out_Sample <- attritionData[-train_ind, -c(33:44)]
+Dev_Sample <- attritionData[train_ind, ]
+Hold_Out_Sample <- attritionData[-train_ind, ]
+```
+- Proportion in Full Data
+
+```{r, echo=F}
+prop.table(table(attritionData$Attrition_Num))
+```
+
+- Proportion in Development Sample
+
+```{r, echo=F}
 prop.table(table(Dev_Sample$Attrition_Num))
+```
+
+- Proportion in Holdout Sample
+
+```{r, echo=F}
 prop.table(table(Hold_Out_Sample$Attrition_Num))
 ```
 
@@ -721,16 +543,27 @@ df <- data.frame(varImp(tRF))
 varImpPlot(tRF)
 ```
 
+## Random Forest Model (cont..)
+
 ### Scoring of the model 
+
+- Development Sample
 
 ```{r, echo = F}
 Dev_Sample$Class_Pred <- predict(tRF, newdata = Dev_Sample, type = "class")
 Dev_Sample$Prob_Pred <- predict(tRF, newdata = Dev_Sample, type = "prob")[,2]
-Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
-Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,2]
+head(Dev_Sample[, c(32:34)])
 ```
 
-### Deciling Function 
+- Holdout Sample
+
+```{r, echo = F}
+Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
+Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,2]
+head(Hold_Out_Sample[, c(32:34)])
+```
+
+### Deciling 
 
 ```{r, echo = F}
 decile <- function(x){ 
@@ -748,11 +581,25 @@ decile <- function(x){
     ifelse(x<deciles[8], 8,   
     ifelse(x<deciles[9], 9, 10 )))))))))) 
 }  
-Dev_Sample$deciles <- decile(Dev_Sample$Prob_Pred)
-Hold_Out_Sample$deciles <- decile(Hold_Out_Sample$Prob_Pred)
 ```
 
-### Ranking Code 
+- Development Sample
+
+```{r, echo = F}
+Dev_Sample$deciles <- decile(Dev_Sample$Prob_Pred)
+head(Dev_Sample[, c(32:35)])
+```
+
+- Holdout Sample
+
+```{r, echo = F}
+Hold_Out_Sample$deciles <- decile(Hold_Out_Sample$Prob_Pred)
+head(Hold_Out_Sample[, c(32:35)])
+```
+
+## Random Forest Model (cont..)
+
+### Ranking 
 
 ```{r, echo = F}
 KS_Table <- data.frame()
@@ -774,6 +621,8 @@ KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
 KS_Table 
 ```
 
+## Random Forest Model (cont..)
+
 ### AUC Computation & ROC
 
 ```{r, echo = F}
@@ -788,8 +637,11 @@ auc <- as.numeric(auc@y.values)
 ### GINI Computation
 
 ```{r, echo = F}
-gini = ineq(Dev_Sample$Prob_Pred, type="Gini") 
+gini = ineq(Dev_Sample$Prob_Pred, type="Gini")
+gini
 ```
+
+## Random Forest Model (cont..)
 
 ### Validating the model on the hold out sample 
 
