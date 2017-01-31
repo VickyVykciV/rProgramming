@@ -1,0 +1,804 @@
+---
+title: "HR Attrition Model"
+author: "DM Assignment Group 15"
+date: "January 4, 2017"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("dplyr")
+library("ggplot2")
+library("corrplot")
+library("ROCR")
+library("randomForest")
+library("data.table")
+library("ineq")
+library("caret")
+library("stats")
+```
+
+## Objective
+
+In this presentation we are explaining how to build a Classification Tree Model using **CHAID** & **CART** techniques for **HR Attrition**. A sample data of 2940 employees of an organisation has been shared to us, the requirement is to understand the pattern of a employee who resigned the organization and to build a model. And so that the model can help the organization to predict the resignations in the future.
+
+This presentation contains,
+
+- Data Summary
+- Exploratory Data Analysis
+- Hypothesis Testing
+- CHAID Model
+- CART Model
+- Implementation Strategy
+
+## Data Summary
+
+```{r, echo=FALSE}
+attritionData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/HR_Employee_Attrition_Data.csv", header = T)
+attach(attritionData)
+```
+- Dimensions of Data
+```{r, echo=FALSE}
+dim(attritionData)
+```
+- Variables of Data
+```{r, echo=FALSE}
+colnames(attritionData)
+```
+- Structure of Data
+```{r, echo=FALSE}
+str(attritionData)
+```
+- Summary
+```{r, echo=FALSE}
+summary(attritionData)
+```
+
+## Data Preparation
+
+### Type Conversion
+
+After understanding the data, we see that few variables requires type conversion, because they have less levels to be called as continuous variables.
+
+So the following variables are converted into **_factor_** variables
+
+- Education					
+- JobInvolvement				
+- JobLevel					
+- EnvironmentSatisfaction	
+- JobSatisfaction			
+- NumCompaniesWorked			
+- OverTime					
+- PerformanceRating			
+- RelationshipSatisfaction	
+- StockOptionLevel			
+- TrainingTimesLastYear		
+- WorkLifeBalance			
+
+```{r, echo=FALSE}
+attritionData$Education <- as.factor(attritionData$Education)
+attritionData$JobInvolvement <- as.factor(attritionData$JobInvolvement)
+attritionData$JobLevel <- as.factor(attritionData$JobLevel)
+attritionData$EnvironmentSatisfaction <- as.factor(attritionData$EnvironmentSatisfaction)
+attritionData$JobSatisfaction <- as.factor(attritionData$JobSatisfaction)
+attritionData$NumCompaniesWorked <- as.factor(attritionData$NumCompaniesWorked)
+attritionData$OverTime <- as.factor(attritionData$OverTime)
+attritionData$PerformanceRating <- as.factor(attritionData$PerformanceRating)
+attritionData$RelationshipSatisfaction <- as.factor(attritionData$RelationshipSatisfaction)
+attritionData$StockOptionLevel <- as.factor(attritionData$StockOptionLevel)
+attritionData$TrainingTimesLastYear <- as.factor(attritionData$TrainingTimesLastYear)
+attritionData$WorkLifeBalance <- as.factor(attritionData$WorkLifeBalance)
+```
+
+### Removing insignificant variables
+
+And also we removed few unwanted variables from the data, as it was not adding any value
+
+- EmployeeCount - All 2940 records have the same value "1"
+- EmployeeNumber - It is just a unique ID for each employee
+- Over18 - All 2940 records have the same value "Y"
+- StandardHours - All 2940 records have the same value "80"
+
+```{r, echo=FALSE}
+attritionData <- attritionData[, -which(names(attritionData) %in% c('EmployeeCount', 'EmployeeNumber', 'Over18', 'StandardHours'))]
+
+continuousData <- attritionData[, -c(2,3,5,7,8,9,10,12,13,14,15,16,19,20,22,23,24,26,27)]
+categoricalData <- attritionData[, -c(1,2,4,6,11,17,18,21,25,28,29,30,31)]
+```
+
+## Exploratory Data Analysis
+
+### Univariate Analysis for Continuous Variables
+
+```{r, echo=FALSE}
+par(mfrow = c(2, 2))
+hist(Age)
+hist(DailyRate)
+hist(DistanceFromHome)
+hist(HourlyRate)
+hist(MonthlyIncome)
+hist(MonthlyRate)
+hist(PercentSalaryHike)
+hist(TotalWorkingYears)
+hist(YearsAtCompany)
+hist(YearsInCurrentRole)
+hist(YearsSinceLastPromotion)
+hist(YearsWithCurrManager)
+```
+
+## Exploratory Data Analysis
+
+### Univariate Analysis for Categorical Variables
+
+```{r, echo=FALSE}
+par(mfrow = c(2, 1))
+busTravelTable <- table(BusinessTravel)
+barplot(busTravelTable, xlab = 'BusinessTravel')
+deptTable <- table(Department)
+barplot(deptTable, xlab = 'Department')
+eduTable <- table(Education)
+barplot(eduTable, xlab = 'Education')
+eduFieldTable <- table(EducationField)
+barplot(eduFieldTable, xlab = 'EducationField')
+envSatTable <- table(EnvironmentSatisfaction)
+barplot(envSatTable, xlab = 'EnvironmentSatisfaction')
+genderTable <- table(Gender)
+barplot(genderTable, xlab = 'Gender')
+jobInvTable <- table(JobInvolvement)
+barplot(jobInvTable, xlab = 'JobInvolvement')
+jobLevelTable <- table(JobLevel)
+barplot(jobLevelTable, xlab = 'JobLevel')
+jobRoleTable <- table(JobRole)
+barplot(jobRoleTable, xlab = 'JobRole')
+jobSatTable <- table(JobSatisfaction)
+barplot(jobSatTable, xlab = 'JobSatisfaction')
+maritalStatTable <- table(MaritalStatus)
+barplot(maritalStatTable, xlab = 'MaritalStatus')
+compWorkedTable <- table(NumCompaniesWorked)
+barplot(compWorkedTable, xlab = 'NumCompaniesWorked')
+oTTable <- table(OverTime)
+barplot(oTTable, xlab = 'OverTime')
+perfRatTable <- table(PerformanceRating)
+barplot(perfRatTable, xlab = 'PerformanceRating')
+relSatTable <- table(RelationshipSatisfaction)
+barplot(relSatTable, xlab = 'RelationshipSatisfaction')
+stockOptTable <- table(StockOptionLevel)
+barplot(stockOptTable, xlab = 'StockOptionLevel')
+trainingTimeTable <- table(TrainingTimesLastYear)
+barplot(trainingTimeTable, xlab = 'TrainingTimesLastYear')
+workLifeBalTable <- table(WorkLifeBalance)
+barplot(workLifeBalTable, xlab = 'WorkLifeBalance')
+```
+
+## Exploratory Data Analysis
+
+### Bivariate Analysis
+
+- Attrition over Age
+
+```{r, echo=FALSE}
+attritionOverAge <- attritionData%>%group_by(Age, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(Age, Attrition, AttritionPerc)
+ggplot(attritionOverAge, aes(x=Age, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Travel
+
+```{r, echo=FALSE}
+attritionOverTravel <- attritionData%>%group_by(BusinessTravel, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(BusinessTravel, Attrition, AttritionPerc)
+ggplot(attritionOverTravel, aes(x=BusinessTravel, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Department
+
+```{r, echo=FALSE}
+attritionOverDept <- attritionData%>%group_by(Department, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(Department, Attrition, AttritionPerc)
+ggplot(attritionOverDept, aes(x=Department, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Distance from Home
+
+```{r, echo=FALSE}
+attritionOverDistanceFromHome <- attritionData%>%group_by(DistanceFromHome, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(DistanceFromHome, Attrition, AttritionPerc)
+ggplot(attritionOverDistanceFromHome, aes(x=DistanceFromHome, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Education Field
+
+```{r, echo=FALSE}
+attritionOverEducationField <- attritionData%>%group_by(EducationField, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(EducationField, Attrition, AttritionPerc)
+ggplot(attritionOverEducationField, aes(x=EducationField, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Environment Satisfaction
+
+```{r, echo=FALSE}
+attritionOverEnv <- attritionData%>%group_by(EnvironmentSatisfaction, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(EnvironmentSatisfaction, Attrition, AttritionPerc)
+ggplot(attritionOverEnv, aes(x=EnvironmentSatisfaction, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Gender
+
+```{r, echo=FALSE}
+attritionOverGender <- attritionData%>%group_by(Gender, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(Gender, Attrition, AttritionPerc)
+ggplot(attritionOverGender, aes(x=Gender, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Job Involvement
+
+```{r, echo=FALSE}
+attritionOverJobInv <- attritionData%>%group_by(JobInvolvement, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(JobInvolvement, Attrition, AttritionPerc)
+ggplot(attritionOverJobInv, aes(x=JobInvolvement, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Job Level
+
+```{r, echo=FALSE}
+attritionOverJobLev <- attritionData%>%group_by(JobLevel, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(JobLevel, Attrition, AttritionPerc)
+ggplot(attritionOverJobLev, aes(x=JobLevel, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Job Role
+
+```{r, echo=FALSE}
+attritionOverJobRole <- attritionData%>%group_by(JobRole, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(JobRole, Attrition, AttritionPerc)
+ggplot(attritionOverJobRole, aes(x=JobRole, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Job Satisfaction
+
+```{r, echo=FALSE}
+attritionOverJobSatis <- attritionData%>%group_by(JobSatisfaction, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(JobSatisfaction, Attrition, AttritionPerc)
+ggplot(attritionOverJobSatis, aes(x=JobSatisfaction, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Marital Status
+
+```{r, echo=FALSE}
+attritionOverMarital <- attritionData%>%group_by(MaritalStatus, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(MaritalStatus, Attrition, AttritionPerc)
+ggplot(attritionOverMarital, aes(x=MaritalStatus, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Checking whether Marital Status and Gender has a relation
+
+```{r, echo=FALSE}
+maritalStatusOverGender <- attritionData%>%group_by(MaritalStatus, Gender)%>%filter(Attrition == 'Yes')%>%summarise(length(Attrition))
+```
+
+- Attrition over Number of Companies Worked
+
+```{r, echo=FALSE}
+attritionOverCompWorked <- attritionData%>%group_by(NumCompaniesWorked, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(NumCompaniesWorked, Attrition, AttritionPerc)
+ggplot(attritionOverCompWorked, aes(x=NumCompaniesWorked, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over OverTime
+
+```{r, echo=FALSE}
+attritionOverOT <- attritionData%>%group_by(OverTime, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(OverTime, Attrition, AttritionPerc)
+ggplot(attritionOverOT, aes(x=OverTime, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Stock Option
+
+```{r, echo=FALSE}
+attritionOverStock <- attritionData%>%group_by(StockOptionLevel, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(StockOptionLevel, Attrition, AttritionPerc)
+ggplot(attritionOverStock, aes(x=StockOptionLevel, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Stock Option over Job Level
+
+```{r, echo=FALSE}
+stockOptionandJobLevel <- attritionData%>%group_by(StockOptionLevel, JobLevel, Attrition)%>%summarise(length(Attrition))
+```
+
+- Attrition over Total Working Exp
+
+```{r, echo=FALSE}
+attritionOverWorkEx <- attritionData%>%group_by(TotalWorkingYears, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(TotalWorkingYears, Attrition, AttritionPerc)
+ggplot(attritionOverWorkEx, aes(x=TotalWorkingYears, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Attrition over Training Time Last Year
+
+```{r, echo=FALSE}
+attritionOverTrainigTime <- attritionData%>%group_by(TrainingTimesLastYear, Attrition)%>%summarise(AttritionCount = length(Attrition))%>%mutate(AttritionPerc = round((AttritionCount*100/sum(AttritionCount))), 0)%>%select(TrainingTimesLastYear, Attrition, AttritionPerc)
+ggplot(attritionOverTrainigTime, aes(x=TrainingTimesLastYear, Attrition, y=AttritionPerc, fill=Attrition))+ geom_bar(stat="identity")+
+    geom_text(aes(label=AttritionPerc), position=position_dodge(width=0), vjust=0)
+```
+
+- Correlation Plot
+
+```{r, echo=FALSE}
+corMatrix <- cor(continuousData)
+corrplot(corMatrix, method = "circle")
+```
+
+## Exploratory Data Analysis
+
+### Insights from Exploratory Data Analysis
+
+- Attrition Rate is high among employees who are in the lower Age group. The middle age group employees are more stable compared to others. This holds true for other aspects which work with Age such as Marital Status, Job Involvement & Work Experience 
+- Singles have higher attrition rate compared to the married & divorced
+- Lesser Job involvement and less work experince are another important attribute of people who have a high probability to leave a organization
+- Attrition rate is high among employees who has less frequent or no travel as part of their job role. Due to this we see attrition being high under few job roles, department and among employess from a specific education field
+- *Department*: Human Resource and Sales department have high attrition rate
+- *Education Filed*: Employees with education in Human Resources, Marketing and Technical Degree
+- *Job Role*: Sales Representative job has the highest attrition rate followed by HR and Lab technician. All these job are the ones which have less frequent travels
+- Deep diving into the environment satisfaction score for these job roles we see that their average environment satisfaction & average daily rate is also less
+- Lower is the work environment satisfaction higher is attrition rate
+- Lower the job satisfaction score higher is the attrition rate. On analyzing the job satisfaction across job role we see that job satisfaction is less than average. incase of the job roles showing high   attrition it is around 2
+- Number of companies worked does not have a clear patter but yes employees who have worked in around 5 to7 companies in the past indicate a hoping attribute and have high probability to leave the organization sonner compared to others
+- Employees who have worked beyond working hours are high probability to leave a company this is again associated with the age and work experience factors
+- Stock option is a unique variable which is given less also causes attrition and higher stock option also cause employess to leave 
+- Work life balance is an important factor in an employee deciding to leave. lower work life balance means less environmental satisfaction which together leads to a person leave a company
+
+## Hypothesis Testing
+
+- Ho : The independent variable is not significant (Means are similar )
+- Ha : The independent variable is significant (Means are different)
+
+**Continuous Variables:**
+
+- Age vs Attrition
+```{r, echo=FALSE}
+t.test(Age~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Age is Significant for the model*
+
+- Daily Rate vs Attrition
+```{r, echo=FALSE}
+t.test(DailyRate~Attrition)
+```
+**Result** : *Ho is rejected as the means are different and so the variable Daily Rate is Significant for the model*
+
+- Hourly Rate vs Attrition
+```{r, echo=FALSE}
+t.test(HourlyRate~Attrition)
+```
+**Result** : *Ho is accepted as the means are not different and so the variable Hourly Rate is In-significant for the model*
+
+- Monthly Income vs Attrition
+```{r, echo=FALSE}
+t.test(MonthlyIncome~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Monthly Income is Significant for the model*
+
+- Monthly Rate vs Attrition
+```{r, echo=FALSE}
+t.test(MonthlyRate~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Monthly Rate is Significant for the model*
+
+- Percentage of Salary Hike vs Attrition
+```{r, echo=FALSE}
+t.test(PercentSalaryHike~Attrition)
+```
+
+**Result** : *Ho is accepted as the means are not different and so the variable Percentage of Salary Hike is In-significant for the model*
+
+- Total Working Hours vs Attrition
+```{r, echo=FALSE}
+t.test(TotalWorkingYears~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Total Working Hours is Significant for the model*
+
+- Years at Company vs Attrition
+```{r, echo=FALSE}
+t.test(YearsAtCompany~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Years at Company is Significant for the model*
+
+- Years in Current Role vs Attrition
+```{r, echo=FALSE}
+t.test(YearsInCurrentRole~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Years in current Role is Significant for the model*
+
+- Years since Last Promotion vs Attrition
+```{r, echo=FALSE}
+t.test(YearsSinceLastPromotion~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Years since Last Promotion is Significant for the model*
+
+- Years with current Manager vs Attrition
+```{r, echo=FALSE}
+t.test(YearsWithCurrManager~Attrition)
+```
+
+**Result** : *Ho is rejected as the means are different and so the variable Years with current Manager is Significant for the model*
+
+
+## Hypothesis Testing
+
+- Convert Attrition which is categorical variable into a numeric factor value
+
+```{r,echo = F}
+attritionData$Attrition_Num <- factor(attritionData$Attrition, levels = c("Yes","No"), labels = c(1, 0))
+attritionData$Attrition_Num<-as.factor(attritionData$Attrition_Num)
+prop.table(table(attritionData$Attrition_Num))
+```
+
+**Categorical Variables:**
+
+- For categorical variables we are identitying the significance using Information Value (IV) 
+
+- Higher the IV, the variable will be more significant
+
+- Here we are having the cutoff for IV as 10, variables with IV less than 10 will be considered as In-significant
+
+```{r, echo=FALSE}
+WoE <- function(var,datafile,ResVar,returnWOE=F){
+    SmryData <- dcast(data=datafile,formula(paste(var,'~',ResVar)),value.var=ResVar,fun.aggregate=length)
+    SmryData[,-1] <- apply(SmryData[,-1],2,function(x) x*100/sum(x))
+    SmryData$WOE <- log(SmryData$`0`/SmryData$`1`)
+    if(returnWOE){
+        SmryData <- SmryData[,c(var,'WOE')]
+        colnames(SmryData) <- c(var,paste0(var,'_WOE'))
+        return(SmryData)
+    }
+    return(data.frame(Feature=var,IV=sum((SmryData$`0`-SmryData$`1`)*SmryData$WOE)))
+}
+categoricalVarNames<-c("BusinessTravel","Department" , "Education","EducationField","EnvironmentSatisfaction","Gender", "JobInvolvement","JobLevel","JobRole","JobSatisfaction","MaritalStatus","NumCompaniesWorked","OverTime","PerformanceRating" ,"RelationshipSatisfaction","StockOptionLevel","TrainingTimesLastYear","WorkLifeBalance")
+
+CategoricalFeatures <- do.call('rbind',lapply(categoricalVarNames,WoE,data = attritionData,'Attrition_Num',F))
+(CategoricalFeatures <- CategoricalFeatures[order(-CategoricalFeatures$IV),])
+```
+
+## Binning the Continuous Variables 
+
+CHAID model can be created only using Categorical vaiables, so to include all the significant (Continuous/Categorical) variables, we are converting all the continuous varaibles into categorical varibles by binning them.
+
+**Binning Age**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$Age)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$Age_Bin<-cut(attritionData$Age,seq(18,60,7),labels = c("18-25","25-32","32-39","39-46","46-53","53-60"))
+prop.table(table(attritionData$Age_Bin,attritionData$Attrition)) ###Not significant trend
+```
+
+**Binning Daily Rate**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$DailyRate)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$DailyRate_Bin<-cut(attritionData$DailyRate,seq(100,1500,140),labels = c("100-240","240-380","380-520","520-660","660-800","800-940","940-1080","1080-1220","1220-1360","1360+"))
+prop.table(table(attritionData$DailyRate_Bin,attritionData$Attrition)) ###Not significant trend
+```
+
+**Binning Distance From Home**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$DistanceFromHome)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$Dist_Bin<-cut(attritionData$DistanceFromHome,seq(0,30,5),labels = c("<5","5-10","10-15","15-20","20-25","25+"))
+prop.table(table(attritionData$Dist_Bin,attritionData$Attrition)) ###significant trend
+```
+
+**Binning Hourly Rate**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$HourlyRate)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$Hr_Rate_Bin<-cut(attritionData$HourlyRate,seq(30,105,15),right = F,labels = c("30-45","45-60","60-75","75-90","90-105"))
+prop.table(table(attritionData$Hr_Rate_Bin,attritionData$Attrition)) ###Not significant trend
+```
+
+**Binning Monthly Income**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$MonthlyIncome)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$Income_Bin<-cut(attritionData$MonthlyIncome,seq(1000,21000,2500),labels = c("1k-3.5k","3.5k-6k","6k-8.5k","8.5k-11k","11.5k - 13.5k","13.5k-16k","16k-18.5k","18.5k+"))
+prop.table(table(attritionData$Income_Bin,attritionData$Attrition)) ###significant trend
+```
+
+**Binning Monthly Rate**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$MonthlyRate)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$Rate_Bin<-cut(attritionData$MonthlyRate,seq(2000,27000,2500),labels = c("2k-4.5k","4.5k-7k","7k-9.5k","9.5k-12k","12k - 14.5k","14.5k-17k","17k-19.5k","19.5k-22k","22k-24.5k","24.5k+"))
+prop.table(table(attritionData$Rate_Bin,attritionData$Attrition)) ###Not significant trend
+```
+
+**Binning year with current Manager**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$YearsWithCurrManager)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$YearsWithCurrManager_Bin <- cut(attritionData$YearsWithCurrManager, seq(0,20,5), right = F, 
+                                        lables = c("0-5", "5-10", "10-15", "15-20"))
+prop.table(table(attritionData$YearsWithCurrManager_Bin, attritionData$Attrition))##Significant
+```
+
+**Binning Last Promotion**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$YearsSinceLastPromotion)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$YearsSinceLastPromotion_Bin <- cut(attritionData$YearsSinceLastPromotion, seq(0, 16, 4), right = F, 
+                                           labels = c("0-4", "4-8", "8-12", "12-16"))
+prop.table(table(attritionData$YearsSinceLastPromotion_Bin, attritionData$Attrition))##Significant
+```
+
+**Binning Years In current role**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$YearsInCurrentRole)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$YearsInCurrentRole_Bin <- cut(attritionData$YearsInCurrentRole, seq(0, 20, 5), right = F, 
+                                      labels = c("0-5", "5-10", "10-15", "15-20"))
+prop.table(table(attritionData$YearsInCurrentRole_Bin, attritionData$Attrition))##Significant
+```
+
+**Binning Years at company**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$YearsAtCompany)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$YearsAtCompany_Bin <- cut(attritionData$YearsAtCompany, seq(0, 42, 7), right = F, 
+                                  labels = c("0-7", "7-14", "14-21", "21-28", "28-35", "35-42"))
+prop.table(table(attritionData$YearsAtCompany_Bin, attritionData$Attrition))##Significant
+```
+
+**Binning Work Experience**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$TotalWorkingYears)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$TotalWorkingYears_Bin <- cut(attritionData$TotalWorkingYears, seq(0, 42, 7), right = F, 
+                                     labels = c("0-7", "7-14", "14-21", "21-28", "28-35", "35-42"))
+prop.table(table(attritionData$TotalWorkingYears_Bin, attritionData$Attrition))##Significant
+```
+
+**Binning Percentage Salary Hike**
+
+- Range
+
+```{r,echo = FALSE}
+range(attritionData$PercentSalaryHike)
+```
+
+- Trend
+
+```{r,echo = FALSE}
+attritionData$PercentSalaryHike_Bin <- cut(attritionData$PercentSalaryHike, seq(10, 25, 3), 
+                                     labels = c("10-13", "13-16", "16-19", "19-22", "22-25"))
+prop.table(table(attritionData$PercentSalaryHike_Bin, attritionData$Attrition))##Significant
+```
+
+## Sampling the data 
+
+- The data is imbalanced thus sampling needs to done taking this constrain in mind while sampling the data into - *Development & Hold Out*
+
+```{r,echo = F}
+set.seed(2015)
+smp_size <- floor(0.70 * nrow(attritionData))
+train_ind <- sample(seq_len(nrow(attritionData)), size = smp_size)
+Dev_Sample <- attritionData[train_ind, -c(33:44)]
+Hold_Out_Sample <- attritionData[-train_ind, -c(33:44)]
+prop.table(table(Dev_Sample$Attrition_Num))
+prop.table(table(Hold_Out_Sample$Attrition_Num))
+```
+
+
+## Random Forest Model
+
+```{r, echo = F}
+set.seed(2015)
+
+randForModel_1 <- randomForest(
+  Dev_Sample$Attrition_Num ~ .,
+  data = Dev_Sample[, -c(2, 32, 33:44)],
+  ntree = 49,
+  mtry = 7,
+  nodesize = 10,
+  importance = T
+  )
+
+print(randForModel_1)
+
+plot(randForModel_1, main = "")
+legend("topright", c("OOB", "0", "1"), text.col=1:6, lty=1:3, col=1:3)
+title(main="OOB Error Rate")
+
+randForModel_2 <- randomForest(
+  as.factor(Dev_Sample$Attrition_Num) ~ .,
+  data = Dev_Sample[, -c(2, 32, 33:44)],
+  ntree = 37,
+  mtry = 7,
+  nodesize = 10,
+  importance = T
+  )
+
+print(randForModel_2)
+
+tRF <- tuneRF(
+  x = Dev_Sample[, -c(2, 32, 33:44)],
+  y = Dev_Sample$Attrition_Num,
+  mtryStart = 3,
+  ntreeTry = 37,
+  stepFactor = 1.5,
+  improve = 0.0001,
+  trace = TRUE,
+  plot = TRUE,
+  doBest = TRUE,
+  nodesize = 10,
+  importance = TRUE
+  )
+
+df <- data.frame(varImp(tRF))
+varImpPlot(tRF)
+```
+
+### Scoring of the model 
+
+```{r, echo = F}
+Dev_Sample$Class_Pred <- predict(tRF, newdata = Dev_Sample, type = "class")
+Dev_Sample$Prob_Pred <- predict(tRF, newdata = Dev_Sample, type = "prob")[,2]
+Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
+Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,2]
+```
+
+### Deciling Function 
+
+```{r, echo = F}
+decile <- function(x){ 
+  deciles <- vector(length=10)   
+  for (i in seq(0.1,1,.1)){     
+  deciles[i*10] <- quantile(x, i, na.rm=T)   }   
+  return (   
+    ifelse(x<deciles[1], 1,   
+    ifelse(x<deciles[2], 2, 
+    ifelse(x<deciles[3], 3,
+    ifelse(x<deciles[4], 4,
+    ifelse(x<deciles[5], 5,
+    ifelse(x<deciles[6], 6,
+    ifelse(x<deciles[7], 7,   
+    ifelse(x<deciles[8], 8,   
+    ifelse(x<deciles[9], 9, 10 )))))))))) 
+}  
+Dev_Sample$deciles <- decile(Dev_Sample$Prob_Pred)
+Hold_Out_Sample$deciles <- decile(Hold_Out_Sample$Prob_Pred)
+```
+
+### Ranking Code 
+
+```{r, echo = F}
+KS_Table <- data.frame()
+for (i in 1:10)
+{
+  Cnt = length(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i])
+  Cnt_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i] == 1))
+  Cnt_Non_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i] == 0))
+  KS_Tab <- cbind(i, Cnt, Cnt_Resp, Cnt_Non_Resp)
+  KS_Table <- rbind(KS_Table, KS_Tab)
+}
+
+KS_Table$Resp_Rate <-  KS_Table$Cnt_Resp * 100 / KS_Table$Cnt
+KS_Table$Cum_Resp <- cumsum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Non_Resp <- cumsum(KS_Table$Cnt_Non_Resp)
+KS_Table$Cum_Rel_Resp <- KS_Table$Cum_Resp / sum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Rel_Non_Resp <- KS_Table$Cum_Non_Resp / sum(KS_Table$Cnt_Non_Resp)
+KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
+KS_Table 
+```
+
+### AUC Computation & ROC
+
+```{r, echo = F}
+pred <- prediction(Dev_Sample$Prob_Pred, Dev_Sample$Attrition_Num)
+perf <- performance(pred, "tpr", "fpr")
+plot(perf) 
+KS <- max(attr(perf, 'y.values')[[1]]-attr(perf, 'x.values')[[1]])
+auc <- performance(pred,"auc") 
+auc <- as.numeric(auc@y.values)
+```
+
+### GINI Computation
+
+```{r, echo = F}
+gini = ineq(Dev_Sample$Prob_Pred, type="Gini") 
+```
+
+### Validating the model on the hold out sample 
+
+```{r, echo = F}
+Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
+Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,2]
+confusionMatrix(Hold_Out_Sample$Attrition_Num,Hold_Out_Sample$Class_Pred)
+```
+
+
+## Neural Network Model 
+
