@@ -1,6 +1,6 @@
 ---
 title: "HR Attrition Model - Random Forest & Neural Network"
-author: "Vignesh Venugopal"
+author: "DM Assignment 1 Group"
 date: "Feburary 1, 2017"
 output: slidy_presentation
 ---
@@ -17,6 +17,8 @@ library("ineq")
 library("caret")
 library("stats")
 library("neuralnet")
+source(file = "https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/functions/deciling.R")
+source(file = "https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/functions/woe.R")
 ```
 
 ## Objective
@@ -449,17 +451,6 @@ attritionData <- attritionData[, -2]
 - Here we are having the cutoff for IV as 10, variables with IV less than 10 will be considered as In-significant
 
 ```{r, echo=FALSE}
-WoE <- function(var,datafile,ResVar,returnWOE=F){
-    SmryData <- dcast(data=datafile,formula(paste(var,'~',ResVar)),value.var=ResVar,fun.aggregate=length)
-    SmryData[,-1] <- apply(SmryData[,-1],2,function(x) x*100/sum(x))
-    SmryData$WOE <- log(SmryData$`0`/SmryData$`1`)
-    if(returnWOE){
-        SmryData <- SmryData[,c(var,'WOE')]
-        colnames(SmryData) <- c(var,paste0(var,'_WOE'))
-        return(SmryData)
-    }
-    return(data.frame(Feature=var,IV=sum((SmryData$`0`-SmryData$`1`)*SmryData$WOE)))
-}
 categoricalVarNames<-c("BusinessTravel","Department" , "Education","EducationField","EnvironmentSatisfaction","Gender", "JobInvolvement","JobLevel","JobRole","JobSatisfaction","MaritalStatus","NumCompaniesWorked","OverTime","PerformanceRating" ,"RelationshipSatisfaction","StockOptionLevel","TrainingTimesLastYear","WorkLifeBalance")
 
 CategoricalFeatures <- do.call('rbind',lapply(categoricalVarNames,WoE,data = attritionData,'Attrition_Num',F))
@@ -509,7 +500,7 @@ Two parameters decides the OOB error rates, are
 
 We have find out the optimal value for these two parameters, to build a efficient model
 
-## Model 1:
+### Model 1:
 
 *ntree : 49*
 
@@ -547,7 +538,7 @@ In the plot, we see that the OOB error rate is getting stagnant around 33 trees
 
 ## Random Forest Model (cont..)
 
-## Model 2:
+### Model 2:
 
 *ntree : 33*
 
@@ -572,6 +563,8 @@ We can see, that the OOB error rate remains same, even though we reduced the ntr
 ## Random Forest Model (cont..)
 
 ### Finding the optimal value for mtry:
+
+We are trying to find the optimal value for mtry by tuning and building a model using that
 
 ```{r, echo=F}
 set.seed(1)
@@ -606,6 +599,14 @@ varImpPlot(tRF)
 
 ### Scoring:
 
+Using the tuned model with ntree : 33 & mtry : 13, let's score the observations
+
+1) Attrition_Num -> Reference (Acutual)
+
+2) Class_Pred    -> Predicted Value
+
+3) Prob_Pred     -> Predicted Probability
+
 - Development Sample
 
 ```{r, echo = F}
@@ -622,7 +623,15 @@ Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "pro
 head(Hold_Out_Sample[, c(31:33)])
 ```
 
+### Confusion Matrix:
+
+```{r, echo = F}
+confusionMatrix(Dev_Sample$Attrition_Num,Dev_Sample$Class_Pred)
+```
+
 ### Deciling:
+
+We are deciling(10%), based on predicted probaility value
 
 - Development Sample
 
@@ -670,9 +679,15 @@ KS_Table
 pred <- ROCR::prediction(Dev_Sample$Prob_Pred, Dev_Sample$Attrition_Num)
 perf <- ROCR::performance(pred, "tpr", "fpr")
 plot(perf) 
-KS <- max(attr(perf, 'y.values')[[1]]-attr(perf, 'x.values')[[1]])
 auc <- performance(pred,"auc") 
 auc <- as.numeric(auc@y.values)
+auc
+```
+
+### K-S Test Stastic:
+```{r, echo=F}
+KS <- max(attr(perf, 'y.values')[[1]]-attr(perf, 'x.values')[[1]])
+KS
 ```
 
 ### GINI Computation:
