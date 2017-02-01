@@ -1,6 +1,6 @@
 ---
 title: "HR Attrition Model - Random Forest & Neural Network"
-author: "DM Assignment 1 Group"
+author: "DM Assignment 15 Group"
 date: "Feburary 1, 2017"
 output: slidy_presentation
 ---
@@ -733,6 +733,8 @@ Hold_Out_Sample_Num <- cbind(Hold_Out_Sample_Num, Attrition_Num = Hold_Out_Attri
 - Model 1:
 
 ```{r, echo=F}
+set.seed(1)
+
 nnModel_1 <-
     neuralnet(
     formula = Attrition_Num ~ Age + BusinessTravel + DailyRate +
@@ -757,15 +759,23 @@ nnModel_1 <-
 plot(nnModel_1)
 
 quantile( nnModel_1$net.result[[1]], c(0,1,5,10,25,50,75,90,95,99,100) / 100 )
+```
+We see, there is not much of gradation in the predicted probabilities of each quantile, so we have to scale the data.
 
+```{r, echo=F}
+set.seed(1)
 Dev_Sample_2 <- scale(Dev_Sample_Num[, -31])
 Dev_Sample_2 <- cbind(Dev_Sample_2, Attrition_Num = Dev_Sample_Num[31])
 ```
-We see, there is not much of gradation in the predicted probabilities of each quantile, so we have to scale the data. Let's build the model after scaling the data.
+
+## Neural Network Model (cont..)
 
 - Model 2:
 
+Let's build the model after scaling the data.
+
 ```{r, echo=F}
+set.seed(1)
 nnModel_2 <-
     neuralnet(
     formula = Attrition_Num ~ Age + BusinessTravel + DailyRate +
@@ -799,13 +809,30 @@ After scaling the data, we can see that there is a good level of gradation in th
 ### Model Performance:
 
 ```{r, echo=F}
-Pred_Nm = data.frame(Target = Dev_Sample$Attrition_Num,  
+set.seed(1)
+Pred_Nm = data.frame(Target = Dev_Sample_2$Attrition_Num,  
   Predict.score = nnModel_2$net.result[[1]] ) 
 sse <- sum((Pred_Nm$Target-Pred_Nm$Predict.score)^2)/2
 Pred_Nm$Pred_Class<-ifelse(Pred_Nm$Predict.score>0.9,1,0)
-with(Pred_Nm,table(Target,Pred_Class))
-mis_class_error<-(150/2058)*100
+Dev_Confusion<-with(Pred_Nm,table(Target,Pred_Class))
+mis_class_error<-(sum(Dev_Confusion[2,1]+Dev_Confusion[1,2])/nrow(Dev_Sample_2))*100
 classification_Accuracy<-100-mis_class_error
+``` 
+
+- Confusion Matrix
+
+```{r, echo=F}
+Dev_Confusion
+```
+
+Classification Accuracy of the model on development sample is 
+
+```{r, echo=F}
+classification_Accuracy
+```
+
+
+```{r, echo=F}
 Pred_Nm$deciles<-decile(Pred_Nm$Predict.score)
 KS_Table <- data.frame()
 for (i in 1:10)
@@ -823,16 +850,48 @@ KS_Table$Cum_Non_Resp <- cumsum(KS_Table$Cnt_Non_Resp)
 KS_Table$Cum_Rel_Resp <- KS_Table$Cum_Resp / sum(KS_Table$Cnt_Resp)
 KS_Table$Cum_Rel_Non_Resp <- KS_Table$Cum_Non_Resp / sum(KS_Table$Cnt_Non_Resp)
 KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
+```
+
+### KS Stastic:
+
+```{r, echo=F}
 KS_Table
 ```
 
-### Scoring:
+## Neural Network Model (cont..)
+
+### Validating the model on the hold out sample:
+
+- Gradation:
 
 ```{r, echo=F}
+set.seed(1)
 Hold_Out_Sample_2 <- scale(Hold_Out_Sample_Num[, -31])
-compute.output = compute(nnModel_2, Hold_Out_Sample_2) 
-Hold_Out_Sample_2$Predict.score = compute.output$net.result 
-View(Hold_Out_Sample_2)  
+Hold_Out_Sample_2 <- cbind(Hold_Out_Sample_2, Attrition_Num = Hold_Out_Sample_Num[31])
+nnmodel_Holdout = compute(nnModel_2, Hold_Out_Sample_2[, -31]) 
+Hold_Out_Sample_2$Predict.score = nnmodel_Holdout$net.result 
 quantile(Hold_Out_Sample_2$Predict.score, c(0,1,5,10,25,50,75,90,95,99,100)/100) 
+```
+
+```{r, echo=F}
+HoldOut_Pred_Nm = data.frame(Target = Hold_Out_Sample_2$Attrition_Num,  
+  Predict.score = Hold_Out_Sample_2$Predict.score ) 
+HoldOut_sse <- sum((HoldOut_Pred_Nm$Target-HoldOut_Pred_Nm$Predict.score)^2)/2
+HoldOut_Pred_Nm$Pred_Class<-ifelse(HoldOut_Pred_Nm$Predict.score>0.9,1,0)
+Hold_Out_Confusion<-with(HoldOut_Pred_Nm,table(Target,Pred_Class))
+hold_out_mis_class_error<-(sum(Hold_Out_Confusion[2,1]+Hold_Out_Confusion[1,2])/nrow(Hold_Out_Sample_2))*100
+hold_out_classification_Accuracy<-100-hold_out_mis_class_error
+```
+
+- Confusion Matrix:
+
+```{r, echo=F}
+Hold_Out_Confusion
+```
+
+Classification Accuracy of the model in hold out sample is 
+
+```{r, echo=F}
+hold_out_classification_Accuracy
 ```
 
