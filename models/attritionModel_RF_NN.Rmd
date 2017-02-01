@@ -1,7 +1,7 @@
 ---
-title: "HR Attrition Model"
-author: "DM Assignment Group 15"
-date: "January 4, 2017"
+title: "HR Attrition Model - Random Forest & Neural Network"
+author: "Vignesh Venugopal"
+date: "Feburary 1, 2017"
 output: slidy_presentation
 ---
 
@@ -55,9 +55,9 @@ str(attritionData)
 summary(attritionData)
 ```
 
-## Data Preparation
+## Data Preparation:
 
-### Type Conversion
+### Type Conversion:
 
 After understanding the data, we see that few variables requires type conversion, because they have less levels to be called as continuous variables.
 
@@ -91,7 +91,7 @@ attritionData$TrainingTimesLastYear <- as.factor(attritionData$TrainingTimesLast
 attritionData$WorkLifeBalance <- as.factor(attritionData$WorkLifeBalance)
 ```
 
-### Removing insignificant variables
+### Removing insignificant variables:
 
 And also we removed few unwanted variables from the data, as it was not adding any value
 
@@ -107,9 +107,9 @@ continuousData <- attritionData[, -c(2,3,5,7,8,9,10,12,13,14,15,16,19,20,22,23,2
 categoricalData <- attritionData[, -c(1,2,4,6,11,17,18,21,25,28,29,30,31)]
 ```
 
-## Exploratory Data Analysis
+## Exploratory Data Analysis:
 
-### Univariate Analysis for Continuous Variables
+### Univariate Analysis for Continuous Variables:
 
 ```{r, echo=FALSE}
 par(mfrow = c(2, 2))
@@ -127,9 +127,9 @@ hist(YearsSinceLastPromotion)
 hist(YearsWithCurrManager)
 ```
 
-## Exploratory Data Analysis
+## Exploratory Data Analysis (cont..)
 
-### Univariate Analysis for Categorical Variables
+### Univariate Analysis for Categorical Variables:
 
 ```{r, echo=FALSE}
 par(mfrow = c(2, 1))
@@ -171,9 +171,9 @@ workLifeBalTable <- table(WorkLifeBalance)
 barplot(workLifeBalTable, xlab = 'WorkLifeBalance')
 ```
 
-## Exploratory Data Analysis
+## Exploratory Data Analysis (cont..)
 
-### Bivariate Analysis
+### Bivariate Analysis:
 
 - Attrition over Age
 
@@ -330,9 +330,9 @@ corMatrix <- cor(continuousData)
 corrplot(corMatrix, method = "circle")
 ```
 
-## Exploratory Data Analysis
+## Exploratory Data Analysis (cont..)
 
-### Insights from Exploratory Data Analysis
+### Insights from Exploratory Data Analysis:
 
 - Attrition Rate is high among employees who are in the lower Age group. The middle age group employees are more stable compared to others. This holds true for other aspects which work with Age such as Marital Status, Job Involvement & Work Experience 
 - Singles have higher attrition rate compared to the married & divorced
@@ -349,7 +349,7 @@ corrplot(corMatrix, method = "circle")
 - Stock option is a unique variable which is given less also causes attrition and higher stock option also cause employess to leave 
 - Work life balance is an important factor in an employee deciding to leave. lower work life balance means less environmental satisfaction which together leads to a person leave a company
 
-## Hypothesis Testing
+## Hypothesis Testing:
 
 - Ho : The independent variable is not significant (Means are similar )
 - Ha : The independent variable is significant (Means are different)
@@ -432,7 +432,7 @@ t.test(YearsWithCurrManager~Attrition)
 **Result** : *Ho is rejected as the means are different and so the variable Years with current Manager is Significant for the model*
 
 
-## Hypothesis Testing
+## Hypothesis Testing (cont..)
 
 ```{r,echo = F}
 attritionData$Attrition_Num <- factor(attritionData$Attrition, levels = c("Yes","No"), labels = c(1, 0))
@@ -466,9 +466,11 @@ CategoricalFeatures <- do.call('rbind',lapply(categoricalVarNames,WoE,data = att
 (CategoricalFeatures <- CategoricalFeatures[order(-CategoricalFeatures$IV),])
 ```
 
-## Sampling the data 
+## Sampling the data:
 
-- The data is imbalanced thus sampling needs to done taking this constrain in mind while sampling the data into - *Development & Hold Out*
+Let's split the data into 70:30 proportion for the *Development* & *Hold-Out* respectively
+
+Considering the fact that the proportion of 0's & 1's is not balanced in the data, it's very important to maintain the proportion in the Development and Hold-Out samples
 
 ```{r,echo = F}
 set.seed(1)
@@ -496,9 +498,24 @@ prop.table(table(Hold_Out_Sample$Attrition_Num))
 ```
 
 
-## Random Forest Model
+## Random Forest Model:
 
-```{r, echo = F}
+Here we are building a ensemble model, the major factor which defines the efficiency of the model is Out-Of-Bag(OOB) error rate
+
+Two parameters decides the OOB error rates, are
+
+1) Number of trees to be built (ntree)
+2) Number of variables randomly sampled as candidate at each split (mtry)
+
+We have find out the optimal value for these two parameters, to build a efficient model
+
+## Model 1:
+
+*ntree : 49*
+
+*mtry  : 6 (sqrt of no. of variables(31) in the data)*
+
+```{r, echo = F, warning=F}
 set.seed(1)
 randForModel_1 <- randomForest(
     Dev_Sample$Attrition_Num ~ .,
@@ -510,11 +527,33 @@ randForModel_1 <- randomForest(
 )
 
 print(randForModel_1)
+```
 
+### Finding the optimal value for ntree
+
+The initial ensemble model is built using 49 tress, the OOB error rate stands at *8.36%*
+
+Let's plot the OOB error rate against ntree, to find the optimal value for ntree
+
+```{r, echo=F}
 plot(randForModel_1, main = "")
 legend("topright", c("OOB", "0", "1"), text.col=1:6, lty=1:3, col=1:3)
 title(main="OOB Error Rate")
+```
 
+In the plot, we see that the OOB error rate is getting stagnant around 33 trees
+
+**Optimal ntree : 33 trees**
+
+## Random Forest Model (cont..)
+
+## Model 2:
+
+*ntree : 33*
+
+*mtry  : 6*
+
+```{r, echo=F}
 set.seed(1)
 randForModel_2 <- randomForest(
     Dev_Sample$Attrition_Num ~ .,
@@ -526,7 +565,15 @@ randForModel_2 <- randomForest(
 )
 
 print(randForModel_2)
+```
 
+We can see, that the OOB error rate remains same, even though we reduced the ntree to 33
+
+## Random Forest Model (cont..)
+
+### Finding the optimal value for mtry:
+
+```{r, echo=F}
 set.seed(1)
 
 tRF <- tuneRF(
@@ -542,14 +589,22 @@ tRF <- tuneRF(
   nodesize = 10,
   importance = TRUE
   )
+```
 
+**Optimal mtry : 13 variables**
+
+## Random Forest Model (cont..)
+
+### Variable Importance:
+
+```{r, echo=F}
 df <- data.frame(varImp(tRF))
 varImpPlot(tRF)
 ```
 
 ## Random Forest Model (cont..)
 
-### Scoring of the model 
+### Scoring:
 
 - Development Sample
 
@@ -567,25 +622,7 @@ Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "pro
 head(Hold_Out_Sample[, c(31:33)])
 ```
 
-### Deciling 
-
-```{r, echo = F}
-decile <- function(x){ 
-  deciles <- vector(length=10)   
-  for (i in seq(0.1,1,.1)){     
-  deciles[i*10] <- quantile(x, i, na.rm=T)   }   
-  return (   
-    ifelse(x<deciles[1], 1,   
-    ifelse(x<deciles[2], 2, 
-    ifelse(x<deciles[3], 3,
-    ifelse(x<deciles[4], 4,
-    ifelse(x<deciles[5], 5,
-    ifelse(x<deciles[6], 6,
-    ifelse(x<deciles[7], 7,   
-    ifelse(x<deciles[8], 8,   
-    ifelse(x<deciles[9], 9, 10 )))))))))) 
-}  
-```
+### Deciling:
 
 - Development Sample
 
@@ -603,7 +640,7 @@ head(Hold_Out_Sample[, c(31:34)])
 
 ## Random Forest Model (cont..)
 
-### Ranking 
+### Ranking:
 
 ```{r, echo = F}
 KS_Table <- data.frame()
@@ -627,7 +664,7 @@ KS_Table
 
 ## Random Forest Model (cont..)
 
-### AUC Computation & ROC
+### AUC Computation & ROC:
 
 ```{r, echo = F}
 pred <- ROCR::prediction(Dev_Sample$Prob_Pred, Dev_Sample$Attrition_Num)
@@ -638,7 +675,7 @@ auc <- performance(pred,"auc")
 auc <- as.numeric(auc@y.values)
 ```
 
-### GINI Computation
+### GINI Computation:
 
 ```{r, echo = F}
 gini = ineq(Dev_Sample$Prob_Pred, type="Gini")
@@ -647,7 +684,7 @@ gini
 
 ## Random Forest Model (cont..)
 
-### Validating the model on the hold out sample 
+### Validating the model on the hold out sample:
 
 ```{r, echo = F}
 Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
@@ -656,7 +693,7 @@ confusionMatrix(Hold_Out_Sample$Attrition_Num,Hold_Out_Sample$Class_Pred)
 ```
 
 
-## Neural Network Model
+## Neural Network Model:
 
 ```{r}
 Dev_Sample$Attrition_Num <- as.numeric(Dev_Sample$Attrition_Num)
@@ -703,18 +740,13 @@ nnModel_1 <-
     )
 
 plot(nnModel_1)
-```
 
-We see, there is not much of gradiation in the predicted probabilities of each quantile, so we have to scale the data
-
-```{r, echo=F}
 quantile( nnModel_1$net.result[[1]], c(0,1,5,10,25,50,75,90,95,99,100) / 100 )
 
 Dev_Sample_2 <- scale(Dev_Sample_Num[, -31])
 Dev_Sample_2 <- cbind(Dev_Sample_2, Attrition_Num = Dev_Sample_Num[31])
 ```
-
-Let's build the model after scaling the data
+We see, there is not much of gradation in the predicted probabilities of each quantile, so we have to scale the data. Let's build the model after scaling the data.
 
 - Model 2:
 
@@ -745,9 +777,11 @@ plot(nnModel_2)
 quantile( nnModel_2$net.result[[1]], c(0,1,5,10,25,50,75,90,95,99,100) / 100 )
 ```
 
+After scaling the data, we can see that there is a good level of gradation in the predicted probabilities of each quantile.
+
 ## Neural Network Model (cont..)
 
-### Model Performance
+### Model Performance:
 
 ```{r, echo=F}
 Pred_Nm = data.frame(Target = Dev_Sample$Attrition_Num,  
@@ -777,9 +811,9 @@ KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
 KS_Table
 ```
 
-### Scoring
+### Scoring:
 
-```{r}
+```{r, echo=F}
 Hold_Out_Sample_2 <- scale(Hold_Out_Sample_Num[, -31])
 compute.output = compute(nnModel_2, Hold_Out_Sample_2) 
 Hold_Out_Sample_2$Predict.score = compute.output$net.result 
