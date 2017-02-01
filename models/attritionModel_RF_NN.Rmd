@@ -16,19 +16,20 @@ library("data.table")
 library("ineq")
 library("caret")
 library("stats")
+library("neuralnet")
 ```
 
 ## Objective
 
-In this presentation we are explaining how to build a Classification Tree Model using **CHAID** & **CART** techniques for **HR Attrition**. A sample data of 2940 employees of an organisation has been shared to us, the requirement is to understand the pattern of a employee who resigned the organization and to build a model. And so that the model can help the organization to predict the resignations in the future.
+In this presentation we are explaining how to build a Classification Tree Model using **Random Forest** & **Neural Network** techniques for **HR Attrition**. A sample data of 2940 employees of an organisation has been shared to us, the requirement is to understand the pattern of a employee who resigned the organization and to build a model. And so that the model can help the organization to predict the resignations in the future.
 
 This presentation contains,
 
 - Data Summary
 - Exploratory Data Analysis
 - Hypothesis Testing
-- CHAID Model
-- CART Model
+- Random Forest Model
+- Neural Network Model
 - Implementation Strategy
 
 ## Data Summary
@@ -436,6 +437,7 @@ t.test(YearsWithCurrManager~Attrition)
 ```{r,echo = F}
 attritionData$Attrition_Num <- factor(attritionData$Attrition, levels = c("Yes","No"), labels = c(1, 0))
 attritionData$Attrition_Num<-as.factor(attritionData$Attrition_Num)
+attritionData <- attritionData[, -2]
 ```
 
 **Categorical Variables:**
@@ -469,7 +471,7 @@ CategoricalFeatures <- do.call('rbind',lapply(categoricalVarNames,WoE,data = att
 - The data is imbalanced thus sampling needs to done taking this constrain in mind while sampling the data into - *Development & Hold Out*
 
 ```{r,echo = F}
-set.seed(2015)
+set.seed(1)
 smp_size <- floor(0.70 * nrow(attritionData))
 train_ind <- sample(seq_len(nrow(attritionData)), size = smp_size)
 Dev_Sample <- attritionData[train_ind, ]
@@ -497,16 +499,15 @@ prop.table(table(Hold_Out_Sample$Attrition_Num))
 ## Random Forest Model
 
 ```{r, echo = F}
-set.seed(2015)
-
+set.seed(1)
 randForModel_1 <- randomForest(
-  Dev_Sample$Attrition_Num ~ .,
-  data = Dev_Sample[, -c(2, 32, 33:44)],
-  ntree = 49,
-  mtry = 7,
-  nodesize = 10,
-  importance = T
-  )
+    Dev_Sample$Attrition_Num ~ .,
+    data = Dev_Sample[, -31],
+    ntree = 49,
+    mtry = 6,
+    nodesize = 10,
+    importance = T
+)
 
 print(randForModel_1)
 
@@ -514,22 +515,25 @@ plot(randForModel_1, main = "")
 legend("topright", c("OOB", "0", "1"), text.col=1:6, lty=1:3, col=1:3)
 title(main="OOB Error Rate")
 
+set.seed(1)
 randForModel_2 <- randomForest(
-  as.factor(Dev_Sample$Attrition_Num) ~ .,
-  data = Dev_Sample[, -c(2, 32, 33:44)],
-  ntree = 37,
-  mtry = 7,
-  nodesize = 10,
-  importance = T
-  )
+    Dev_Sample$Attrition_Num ~ .,
+    data = Dev_Sample[, -31],
+    ntree = 33,
+    mtry = 6,
+    nodesize = 10,
+    importance = T
+)
 
 print(randForModel_2)
 
+set.seed(1)
+
 tRF <- tuneRF(
-  x = Dev_Sample[, -c(2, 32, 33:44)],
+  x = Dev_Sample[, -31],
   y = Dev_Sample$Attrition_Num,
   mtryStart = 3,
-  ntreeTry = 37,
+  ntreeTry = 33,
   stepFactor = 1.5,
   improve = 0.0001,
   trace = TRUE,
@@ -551,16 +555,16 @@ varImpPlot(tRF)
 
 ```{r, echo = F}
 Dev_Sample$Class_Pred <- predict(tRF, newdata = Dev_Sample, type = "class")
-Dev_Sample$Prob_Pred <- predict(tRF, newdata = Dev_Sample, type = "prob")[,2]
-head(Dev_Sample[, c(32:34)])
+Dev_Sample$Prob_Pred <- predict(tRF, newdata = Dev_Sample, type = "prob")[,1]
+head(Dev_Sample[, c(31:33)])
 ```
 
 - Holdout Sample
 
 ```{r, echo = F}
 Hold_Out_Sample$Class_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "class")
-Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,2]
-head(Hold_Out_Sample[, c(32:34)])
+Hold_Out_Sample$Prob_Pred <- predict(tRF, newdata = Hold_Out_Sample, type = "prob")[,1]
+head(Hold_Out_Sample[, c(31:33)])
 ```
 
 ### Deciling 
@@ -586,15 +590,15 @@ decile <- function(x){
 - Development Sample
 
 ```{r, echo = F}
-Dev_Sample$deciles <- decile(Dev_Sample$Prob_Pred)
-head(Dev_Sample[, c(32:35)])
+Dev_Sample$Deciles <- decile(Dev_Sample$Prob_Pred)
+head(Dev_Sample[, c(31:34)])
 ```
 
 - Holdout Sample
 
 ```{r, echo = F}
-Hold_Out_Sample$deciles <- decile(Hold_Out_Sample$Prob_Pred)
-head(Hold_Out_Sample[, c(32:35)])
+Hold_Out_Sample$Deciles <- decile(Hold_Out_Sample$Prob_Pred)
+head(Hold_Out_Sample[, c(31:34)])
 ```
 
 ## Random Forest Model (cont..)
@@ -605,9 +609,9 @@ head(Hold_Out_Sample[, c(32:35)])
 KS_Table <- data.frame()
 for (i in 1:10)
 {
-  Cnt = length(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i])
-  Cnt_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i] == 1))
-  Cnt_Non_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$deciles == i] == 0))
+  Cnt = length(Dev_Sample$Attrition_Num[Dev_Sample$Deciles == i])
+  Cnt_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$Deciles == i] == 1))
+  Cnt_Non_Resp = sum(as.numeric(Dev_Sample$Attrition_Num[Dev_Sample$Deciles == i] == 0))
   KS_Tab <- cbind(i, Cnt, Cnt_Resp, Cnt_Non_Resp)
   KS_Table <- rbind(KS_Table, KS_Tab)
 }
@@ -626,8 +630,8 @@ KS_Table
 ### AUC Computation & ROC
 
 ```{r, echo = F}
-pred <- prediction(Dev_Sample$Prob_Pred, Dev_Sample$Attrition_Num)
-perf <- performance(pred, "tpr", "fpr")
+pred <- ROCR::prediction(Dev_Sample$Prob_Pred, Dev_Sample$Attrition_Num)
+perf <- ROCR::performance(pred, "tpr", "fpr")
 plot(perf) 
 KS <- max(attr(perf, 'y.values')[[1]]-attr(perf, 'x.values')[[1]])
 auc <- performance(pred,"auc") 
@@ -652,5 +656,134 @@ confusionMatrix(Hold_Out_Sample$Attrition_Num,Hold_Out_Sample$Class_Pred)
 ```
 
 
-## Neural Network Model 
+## Neural Network Model
+
+```{r}
+Dev_Sample$Attrition_Num <- as.numeric(Dev_Sample$Attrition_Num)
+Dev_Sample$Attrition_Num[Dev_Sample$Attrition_Num == 1] <- 0
+Dev_Sample$Attrition_Num[Dev_Sample$Attrition_Num == 2] <- 1
+Dev_Attrition <- Dev_Sample$Attrition_Num
+Dev_Sample_Num <-
+data.frame(lapply(Dev_Sample[, -c(31:34)], function(x)
+as.numeric(as.factor(x))))
+Dev_Sample_Num <- cbind(Dev_Sample_Num, Attrition_Num = Dev_Attrition)
+
+Hold_Out_Sample$Attrition_Num <- as.numeric(Hold_Out_Sample$Attrition_Num)
+Hold_Out_Sample$Attrition_Num[Hold_Out_Sample$Attrition_Num == 1] <- 0
+Hold_Out_Sample$Attrition_Num[Hold_Out_Sample$Attrition_Num == 2] <- 1
+Hold_Out_Attrition <- Hold_Out_Sample$Attrition_Num
+Hold_Out_Sample_Num <-
+data.frame(lapply(Hold_Out_Sample[, -c(31:34)], function(x)
+as.numeric(as.factor(x))))
+Hold_Out_Sample_Num <- cbind(Hold_Out_Sample_Num, Attrition_Num = Hold_Out_Attrition)
+```
+
+- Model 1:
+
+```{r, echo=F}
+nnModel_1 <-
+    neuralnet(
+    formula = Attrition_Num ~ Age + BusinessTravel + DailyRate +
+    Department + DistanceFromHome + Education + EducationField + EnvironmentSatisfaction +
+    Gender +
+    HourlyRate + JobInvolvement + JobLevel + JobRole + JobSatisfaction + MaritalStatus +
+    MonthlyIncome + MonthlyRate + NumCompaniesWorked +
+    OverTime + PercentSalaryHike + PerformanceRating + RelationshipSatisfaction +
+    StockOptionLevel + TotalWorkingYears +
+    TrainingTimesLastYear + WorkLifeBalance + YearsAtCompany + YearsInCurrentRole +
+    YearsSinceLastPromotion + YearsWithCurrManager,
+    data = Dev_Sample_Num,
+    hidden = 6,
+    threshold = 0.1,
+    err.fct = "sse",
+    linear.output = F,
+    lifesign = "full",
+    lifesign.step = 10,
+    stepmax = 2000
+    )
+
+plot(nnModel_1)
+```
+
+We see, there is not much of gradiation in the predicted probabilities of each quantile, so we have to scale the data
+
+```{r, echo=F}
+quantile( nnModel_1$net.result[[1]], c(0,1,5,10,25,50,75,90,95,99,100) / 100 )
+
+Dev_Sample_2 <- scale(Dev_Sample_Num[, -31])
+Dev_Sample_2 <- cbind(Dev_Sample_2, Attrition_Num = Dev_Sample_Num[31])
+```
+
+Let's build the model after scaling the data
+
+- Model 2:
+
+```{r, echo=F}
+nnModel_2 <-
+    neuralnet(
+    formula = Attrition_Num ~ Age + BusinessTravel + DailyRate +
+    Department + DistanceFromHome + Education + EducationField + EnvironmentSatisfaction +
+    Gender +
+    HourlyRate + JobInvolvement + JobLevel + JobRole + JobSatisfaction + MaritalStatus +
+    MonthlyIncome + MonthlyRate + NumCompaniesWorked +
+    OverTime + PercentSalaryHike + PerformanceRating + RelationshipSatisfaction +
+    StockOptionLevel + TotalWorkingYears +
+    TrainingTimesLastYear + WorkLifeBalance + YearsAtCompany + YearsInCurrentRole +
+    YearsSinceLastPromotion + YearsWithCurrManager,
+    data = Dev_Sample_2,
+    hidden = 6,
+    threshold = 0.1,
+    err.fct = "sse",
+    linear.output = F,
+    lifesign = "full",
+    lifesign.step = 10,
+    stepmax = 2000
+    )
+
+plot(nnModel_2)
+
+quantile( nnModel_2$net.result[[1]], c(0,1,5,10,25,50,75,90,95,99,100) / 100 )
+```
+
+## Neural Network Model (cont..)
+
+### Model Performance
+
+```{r, echo=F}
+Pred_Nm = data.frame(Target = Dev_Sample$Attrition_Num,  
+  Predict.score = nnModel_2$net.result[[1]] ) 
+sse <- sum((Pred_Nm$Target-Pred_Nm$Predict.score)^2)/2
+Pred_Nm$Pred_Class<-ifelse(Pred_Nm$Predict.score>0.9,1,0)
+with(Pred_Nm,table(Target,Pred_Class))
+mis_class_error<-(150/2058)*100
+classification_Accuracy<-100-mis_class_error
+Pred_Nm$deciles<-decile(Pred_Nm$Predict.score)
+KS_Table <- data.frame()
+for (i in 1:10)
+{
+  Cnt = length(Pred_Nm$Target[Pred_Nm$deciles == i])
+  Cnt_Resp = sum(as.numeric(Pred_Nm$Target[Pred_Nm$deciles== i] == 1))
+  Cnt_Non_Resp = sum(as.numeric(Pred_Nm$Target[Pred_Nm$deciles == i] == 0))
+  KS_Tab <- cbind(i, Cnt, Cnt_Resp, Cnt_Non_Resp)
+  KS_Table <- rbind(KS_Table, KS_Tab)
+}
+
+KS_Table$Resp_Rate <-  KS_Table$Cnt_Resp * 100 / KS_Table$Cnt
+KS_Table$Cum_Resp <- cumsum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Non_Resp <- cumsum(KS_Table$Cnt_Non_Resp)
+KS_Table$Cum_Rel_Resp <- KS_Table$Cum_Resp / sum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Rel_Non_Resp <- KS_Table$Cum_Non_Resp / sum(KS_Table$Cnt_Non_Resp)
+KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
+KS_Table
+```
+
+### Scoring
+
+```{r}
+Hold_Out_Sample_2 <- scale(Hold_Out_Sample_Num[, -31])
+compute.output = compute(nnModel_2, Hold_Out_Sample_2) 
+Hold_Out_Sample_2$Predict.score = compute.output$net.result 
+View(Hold_Out_Sample_2)  
+quantile(Hold_Out_Sample_2$Predict.score, c(0,1,5,10,25,50,75,90,95,99,100)/100) 
+```
 
