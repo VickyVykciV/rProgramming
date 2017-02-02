@@ -1,0 +1,97 @@
+---
+title: "Customer Churn Analysis"
+author: "Vignesh Venugopal"
+date: "February 2, 2017"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("dplyr")
+library("ggplot2")
+```
+
+## Data Summary
+
+```{r, echo=F}
+churnData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Cellphone.csv", header = T)
+attach(churnData)
+```
+- Dimensions of Data
+```{r, echo=FALSE}
+dim(churnData)
+```
+- Variables of Data
+```{r, echo=FALSE}
+colnames(churnData)
+```
+- Structure of Data
+```{r, echo=FALSE}
+str(churnData)
+```
+- Summary
+```{r, echo=FALSE}
+summary(churnData)
+```
+
+## Data Preparation:
+
+### Type Conversion:
+
+After understanding the data, we see that few variables requires type conversion, because they have less levels to be called as continuous variables.
+
+So the following variables are converted into **_factor_** variables
+
+- Churn					
+- ContractRenewal				
+- DataPlan					
+- CustServCalls
+
+```{r, echo=FALSE}
+churnData$Churn <- as.factor(churnData$Churn)
+churnData$ContractRenewal <- as.factor(churnData$ContractRenewal)
+churnData$DataPlan <- as.factor(churnData$DataPlan)
+churnData$CustServCalls <- as.factor(churnData$CustServCalls)
+```
+
+## Exploratory Data Analysis:
+
+### Univariate Analysis for Continuous Variables:
+
+```{r, echo=FALSE}
+par(mfrow = c(2, 2))
+hist(AccountWeeks)
+hist(DataUsage)
+hist(DayMins)
+hist(DayCalls)
+hist(MonthlyCharge)
+hist(OverageFee)
+hist(RoamMins)
+```
+
+## Exploratory Data Analysis (cont..)
+
+### Univariate Analysis for Categorical Variables:
+
+```{r, echo=FALSE}
+par(mfrow = c(2, 1))
+barplot(table(ContractRenewal), xlab = 'Contract Renewal')
+barplot(table(DataPlan), xlab = 'Data Plan')
+barplot(table(CustServCalls), xlab = 'Customer Service Calls')
+```
+
+## Exploratory Data Analysis (cont..)
+
+### Bivariate Analysis:
+
+- Churning over Account Weeks
+
+```{r, echo=FALSE}
+churnOverAccountWeeks <-
+  churnData %>% group_by(AccountWeeks, Churn) %>% summarise(ChurnCount = length(Churn)) %>%
+  mutate(ChrunPerc = round((ChurnCount * 100 / sum(ChurnCount))), 0) %>%
+  select(AccountWeeks, Churn, ChrunPerc)
+ggplot(churnOverAccountWeeks, aes(x = AccountWeeks, y = ChrunPerc, fill = Churn)) + geom_bar(stat = "identity") + geom_text(aes(label = ChrunPerc),
+            position = position_dodge(width = 0),
+            vjust = 0)
+```
