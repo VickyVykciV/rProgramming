@@ -28,6 +28,8 @@ colnames(churnData)
 - Structure of Data
 ```{r, echo=FALSE}
 str(churnData)
+
+head(churnData)
 ```
 - Summary
 ```{r, echo=FALSE}
@@ -52,6 +54,8 @@ churnData$Churn <- as.factor(churnData$Churn)
 churnData$ContractRenewal <- as.factor(churnData$ContractRenewal)
 churnData$DataPlan <- as.factor(churnData$DataPlan)
 churnData$CustServCalls <- as.factor(churnData$CustServCalls)
+
+str(churnData)
 ```
 
 ## Exploratory Data Analysis:
@@ -59,9 +63,13 @@ churnData$CustServCalls <- as.factor(churnData$CustServCalls)
 ### Univariate Analysis for Continuous Variables:
 
 ```{r, echo=FALSE}
-par(mfrow = c(2, 2))
+par(mfrow = c(2, 3))
+hist(AccountWeeks)
+barplot(table(ContractRenewal), xlab = 'Contract Renewal')
+barplot(table(DataPlan), xlab = 'Data Plan')
 hist(AccountWeeks)
 hist(DataUsage)
+barplot(table(CustServCalls), xlab = 'Customer Service Calls')
 hist(DayMins)
 hist(DayCalls)
 hist(MonthlyCharge)
@@ -71,15 +79,6 @@ hist(RoamMins)
 
 ## Exploratory Data Analysis (cont..)
 
-### Univariate Analysis for Categorical Variables:
-
-```{r, echo=FALSE}
-par(mfrow = c(2, 1))
-barplot(table(ContractRenewal), xlab = 'Contract Renewal')
-barplot(table(DataPlan), xlab = 'Data Plan')
-barplot(table(CustServCalls), xlab = 'Customer Service Calls')
-```
-
 ## Exploratory Data Analysis (cont..)
 
 ### Bivariate Analysis:
@@ -87,6 +86,7 @@ barplot(table(CustServCalls), xlab = 'Customer Service Calls')
 - Churning over Account Weeks
 
 ```{r, echo=FALSE}
+par(mfrow = c(1, 1))
 churnOverAccountWeeks <-
   churnData %>% group_by(AccountWeeks, Churn) %>% summarise(ChurnCount = length(Churn)) %>%
   mutate(ChrunPerc = round((ChurnCount * 100 / sum(ChurnCount))), 0) %>%
