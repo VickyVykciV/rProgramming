@@ -36,8 +36,6 @@ colnames(churnData)
 - Structure of Data
 ```{r, echo=FALSE}
 str(churnData)
-
-head(churnData)
 ```
 - Summary
 ```{r, echo=FALSE}
@@ -54,8 +52,7 @@ So the following variables are converted into **_factor_** variables
 
 - Churn					
 - ContractRenewal				
-- DataPlan					
-- CustServCalls
+- DataPlan
 
 ```{r, echo=FALSE}
 churnData$Churn <- as.factor(churnData$Churn)
@@ -97,52 +94,88 @@ churnOverAccountWeeks <-
 ggplot(churnOverAccountWeeks, aes(x = Churn, y = Avg_Tenure_Contract)) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Tenure_Contract),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
-Contract_Tb<-  churnData %>% group_by(Churn,ContractRenewal) %>% summarise(Per_Renewal = length(ContractRenewal)/nrow(churnData))
-ggplot(Contract_Tb, aes(x= ContractRenewal, y=Per_Renewal)) + 
-  geom_bar(aes(fill = Churn), stat="identity") +
+
+
+```{r, echo=F}
+Contract_Tb<-  churnData %>% group_by(Churn,ContractRenewal) %>% summarise(Percentage = length(ContractRenewal)/nrow(churnData))
+ggplot(Contract_Tb, aes(x= ContractRenewal, y=Percentage)) + 
+  geom_bar(aes(fill = Churn), stat="identity")+
   facet_grid(~Churn)
+```
 
+
+
+```{r, echo=F}
 dataPlan_Tb<-  churnData %>% group_by(Churn,DataPlan) %>% summarise(Perc_Data_Opt = length(DataPlan)/nrow(churnData))
 ggplot(dataPlan_Tb, aes(x= DataPlan, y=Perc_Data_Opt)) + 
   geom_bar(aes(fill = Churn), stat="identity") +
   facet_grid(~Churn)
+```
 
+
+
+```{r, echo=F}
 churnOverDataUsage <-
   churnData %>% group_by(Churn) %>% summarise(Avg_Data_Usage = mean(DataUsage))
 ggplot(churnOverDataUsage, aes(x = Churn, y = Avg_Data_Usage)) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Data_Usage),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
+
+
+```{r, echo=F}
 custCalls_Tb<-  churnData %>% group_by(Churn,CustServCalls) %>% summarise(Perc_Service_Calls = length(CustServCalls)/nrow(churnData))
 ggplot(custCalls_Tb, aes(x= CustServCalls, y=Perc_Service_Calls)) + 
   geom_bar(aes(fill = Churn), stat="identity") +
   facet_grid(~Churn)
+```
 
+
+
+```{r, echo=F}
 churnOverDayMins <-
   churnData %>% group_by(Churn) %>% summarise(Avg_Day_Mins = round(mean(DayMins), 0))
 ggplot(churnOverDayMins, aes(x = Churn, y = Avg_Day_Mins )) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Day_Mins),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
+
+
+```{r, echo=F}
 churnOverDayCalls <-
   churnData %>% group_by(Churn) %>% summarise(Avg_Day_Call = round(mean(DayCalls), 0))
 ggplot(churnOverDayCalls, aes(x = Churn, y = Avg_Day_Call )) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Day_Call),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
+
+
+```{r, echo=F}
 churnOverMonthlyCharges <-
   churnData %>% group_by(Churn) %>% summarise(charge = round(mean(MonthlyCharge), 0))
 ggplot(churnOverMonthlyCharges, aes(x = Churn, y = charge )) + geom_bar(stat = "identity") + geom_text(aes(label = charge),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
+
+
+```{r, echo=F}
 churnOverOverUsageFee <-
   churnData %>% group_by(Churn) %>% summarise(fee = round(mean(OverageFee), 0))
 ggplot(churnOverOverUsageFee, aes(x = Churn, y = fee )) + geom_bar(stat = "identity") + geom_text(aes(label = fee),
             position = position_dodge(width = 0),
             vjust = 0)
+```
 
+
+
+```{r, echo=F}
 churnOverRoaming <- 
   churnData %>% group_by(Churn) %>% summarise(roaming = round(mean(RoamMins), 0))
 ggplot(churnOverRoaming, aes(x = Churn, y = roaming )) + geom_bar(stat = "identity") + geom_text(aes(label = roaming),
