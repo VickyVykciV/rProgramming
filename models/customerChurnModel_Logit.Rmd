@@ -16,12 +16,23 @@ library("pscl")
 library("caret")
 library("pROC")
 library("lmtest")
+library("corrplot")
+library("Deducer")
 source("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/functions/woe.R")
+source("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/functions/deciling.R")
 ```
 
 ## Data Summary
 
 ```{r, echo=F}
+cost <- function(theta)
+{
+m <- nrow(Predictor_Var)
+g <- sigmoid(Predictor_Var%*%theta)
+J<-(1/m)*sum((-Y*log(g)) - ((1-Y)*log(1-g)))
+return(J)
+}
+
 churnData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Cellphone.csv", header = T)
 attach(churnData)
 ```
@@ -67,10 +78,10 @@ str(churnData)
 ### Univariate Analysis for Continuous Variables:
 
 ```{r, echo=FALSE}
-par(mfrow = c(2, 3))
+par(mfrow = c(2, 5))
 hist(AccountWeeks)
-barplot(table(ContractRenewal), xlab = 'Contract Renewal')
-barplot(table(DataPlan), xlab = 'Data Plan')
+barplot(table(ContractRenewal), xlab = 'Contract Renewal', main = 'Bar Plot of Contract Renewal')
+barplot(table(DataPlan), xlab = 'Data Plan', main = 'Bar Plot of Data Plan')
 hist(DataUsage)
 hist(CustServCalls)
 hist(DayMins)
@@ -100,9 +111,9 @@ ggplot(churnOverAccountWeeks, aes(x = Churn, y = Avg_Tenure_Contract)) + geom_ba
 
 ```{r, echo=F}
 Contract_Tb<-  churnData %>% group_by(Churn,ContractRenewal) %>% summarise(Percentage = length(ContractRenewal)/nrow(churnData))
-ggplot(Contract_Tb, aes(x= ContractRenewal, y=Percentage)) + 
-  geom_bar(aes(fill = Churn), stat="identity")+
-  facet_grid(~Churn)
+ggplot(Contract_Tb, aes(x= Churn, y=Percentage)) + 
+  geom_bar(aes(fill = ContractRenewal), stat="identity")+
+  facet_grid(~ContractRenewal)
 ```
 
 
@@ -202,42 +213,115 @@ CategoricalFeatures <- do.call('rbind', lapply(categoricalVaraible, WoE, data = 
 (CategoricalFeatures <- CategoricalFeatures[order(-CategoricalFeatures$IV),])
 ```
 
-## Model
-
-### Model 1:
+##Data Sampling:
 
 ```{r, echo=F}
-
-set.seed(1)
+set.seed(123)
 smp_size <- floor(0.70 * nrow(churnData))
 train_ind <- sample(seq_len(nrow(churnData)), size = smp_size)
 trainData <- churnData[train_ind, ]
 testData <- churnData[-train_ind, ]
+```
+
+### Complete Data
+```{r, echo=F}
 nrow(churnData)
 prop.table(table(churnData$Churn))
+```
+
+### Development Sample
+```{r, echo=F}
 nrow(trainData)
 prop.table(table(trainData$Churn))
+```
+
+### Holdout Sample
+```{r, echo=F}
 nrow(testData)
 prop.table(table(testData$Churn))
+```
+## Model Building
 
+### Model 1:
+
+```{r, echo=F}
 model1 <- glm(Churn~., family = "binomial", data = trainData)
 summary(model1)
-stepAIC(model1)
+```
 
+## Model Building(cont..)
+
+### Stepwise
+```{r, echo=F}
+stepAIC(model1)
+```
+
+## Model Building(cont..)
+### Model 2
+```{r, echo=F}
 model2 <- glm(formula = Churn ~ ContractRenewal + DataPlan + CustServCalls + 
     DayMins + OverageFee + RoamMins, family = "binomial", data = trainData)
 summary(model2)
+```
 
+## Model Statistics
+
+### Maximum Likelyhood Test
+```{r, echo=F}
 lrtest(model2)
+```
 
+### Pseudo R-Square
+```{r, echo=F}
 pR2(model2)
+```
 
+### Confusion Matrix
+```{r, echo=F}
 trainData$Prediction <- predict(model2, newdata = trainData, type = "response")
 trainData$Prediction_Class <- ifelse(trainData$Prediction < 0.5, 0, 1)
+confusionMatrix(trainData$Churn, trainData$Prediction_Class, positive = "1")
+```
 
-##Misclassification Error
+## ODDS Ratio
 
-cm <- confusionMatrix(trainData$Churn, trainData$Prediction_Class)
+```{r, echo=F}
+exp(cbind('Odds Ratio' = coef(model2), confint(model2)))
+```
 
-cm
+## Correlation
+
+```{r, echo=F}
+corMatrix <- cor(trainData[, -c(1, 3, 4, 12, 13)])
+corrplot(corMatrix, method = "circle")
+```
+
+## Validating the model
+```{r, echo=F}
+testData$Prediction <- predict(model2, newdata = testData, type = "response")
+testData$Prediction_Class <- ifelse(testData$Prediction < 0.4, 0, 1)
+confusionMatrix(testData$Churn, testData$Prediction_Class)
+```
+
+## ROC Curve
+
+```{r, echo=F}
+# Train
+p <- predict(model2, newdata=trainData, type="response")
+pr <- prediction(p, trainData$Churn)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+#Test
+p <- predict(model2, newdata=testData, type="response")
+pr <- prediction(p, testData$Churn)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
 ```
