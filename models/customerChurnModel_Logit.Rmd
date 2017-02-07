@@ -325,3 +325,47 @@ auc <- performance(pr, measure = "auc")
 auc <- auc@y.values[[1]]
 auc
 ```
+
+```{r, echo=F}
+trainData$deciles <- decile(trainData$Prediction)
+KS_Table <- data.frame()
+for (i in 1:10)
+{
+  Cnt = length(trainData$Churn[trainData$deciles  == i])
+  Cnt_Resp = sum(as.numeric(trainData$Churn[trainData$deciles  == i] == 1))
+  Cnt_Non_Resp = sum(as.numeric(trainData$Churn[trainData$deciles  == i] == 0))
+  KS_Tab <- cbind(i, Cnt, Cnt_Resp, Cnt_Non_Resp)
+  KS_Table <- rbind(KS_Table, KS_Tab)
+}
+
+KS_Table$Resp_Rate <-  KS_Table$Cnt_Resp * 100 / KS_Table$Cnt
+KS_Table$Cum_Resp <- cumsum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Non_Resp <- cumsum(KS_Table$Cnt_Non_Resp)
+KS_Table$Cum_Rel_Resp <- KS_Table$Cum_Resp / sum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Rel_Non_Resp <- KS_Table$Cum_Non_Resp / sum(KS_Table$Cnt_Non_Resp)
+KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
+KS_Table 
+write.csv(KS_Table,"KS1.csv")
+
+#Deciling Function 
+#Test
+
+testData$deciles <- decile(testData$Prediction)
+KS_Table <- data.frame()
+for (i in 1:10)
+{
+  Cnt = length(testData$Churn[testData$deciles  == i])
+  Cnt_Resp = sum(as.numeric(testData$Churn[testData$deciles  == i] == 1))
+  Cnt_Non_Resp = sum(as.numeric(testData$Churn[testData$deciles  == i] == 0))
+  KS_Tab <- cbind(i, Cnt, Cnt_Resp, Cnt_Non_Resp)
+  KS_Table <- rbind(KS_Table, KS_Tab)
+}
+
+KS_Table$Resp_Rate <-  KS_Table$Cnt_Resp * 100 / KS_Table$Cnt
+KS_Table$Cum_Resp <- cumsum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Non_Resp <- cumsum(KS_Table$Cnt_Non_Resp)
+KS_Table$Cum_Rel_Resp <- KS_Table$Cum_Resp / sum(KS_Table$Cnt_Resp)
+KS_Table$Cum_Rel_Non_Resp <- KS_Table$Cum_Non_Resp / sum(KS_Table$Cnt_Non_Resp)
+KS_Table$KS <- abs(KS_Table$Cum_Rel_Resp - KS_Table$Cum_Rel_Non_Resp)
+KS_Table 
+```
