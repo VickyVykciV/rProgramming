@@ -9,6 +9,14 @@ output: slidy_presentation
 knitr::opts_chunk$set(echo = FALSE)
 library("dplyr")
 library("ggplot2")
+library("reshape2")
+library("MASS")
+library("dummies")
+library("pscl")
+library("caret")
+library("pROC")
+library("lmtest")
+source("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/functions/woe.R")
 ```
 
 ## Data Summary
@@ -53,7 +61,6 @@ So the following variables are converted into **_factor_** variables
 churnData$Churn <- as.factor(churnData$Churn)
 churnData$ContractRenewal <- as.factor(churnData$ContractRenewal)
 churnData$DataPlan <- as.factor(churnData$DataPlan)
-churnData$CustServCalls <- as.factor(churnData$CustServCalls)
 
 str(churnData)
 ```
@@ -67,9 +74,8 @@ par(mfrow = c(2, 3))
 hist(AccountWeeks)
 barplot(table(ContractRenewal), xlab = 'Contract Renewal')
 barplot(table(DataPlan), xlab = 'Data Plan')
-hist(AccountWeeks)
 hist(DataUsage)
-barplot(table(CustServCalls), xlab = 'Customer Service Calls')
+hist(CustServCalls)
 hist(DayMins)
 hist(DayCalls)
 hist(MonthlyCharge)
@@ -77,7 +83,6 @@ hist(OverageFee)
 hist(RoamMins)
 ```
 
-## Exploratory Data Analysis (cont..)
 
 ## Exploratory Data Analysis (cont..)
 
@@ -86,12 +91,120 @@ hist(RoamMins)
 - Churning over Account Weeks
 
 ```{r, echo=FALSE}
-par(mfrow = c(1, 1))
 churnOverAccountWeeks <-
-  churnData %>% group_by(AccountWeeks, Churn) %>% summarise(ChurnCount = length(Churn)) %>%
-  mutate(ChrunPerc = round((ChurnCount * 100 / sum(ChurnCount))), 0) %>%
-  select(AccountWeeks, Churn, ChrunPerc)
-ggplot(churnOverAccountWeeks, aes(x = AccountWeeks, y = ChrunPerc, fill = Churn)) + geom_bar(stat = "identity") + geom_text(aes(label = ChrunPerc),
+  churnData %>% group_by(Churn) %>% summarise(Avg_Tenure_Contract = round(mean(AccountWeeks), 0))
+
+ggplot(churnOverAccountWeeks, aes(x = Churn, y = Avg_Tenure_Contract)) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Tenure_Contract),
             position = position_dodge(width = 0),
             vjust = 0)
+
+Contract_Tb<-  churnData %>% group_by(Churn,ContractRenewal) %>% summarise(Per_Renewal = length(ContractRenewal)/nrow(churnData))
+ggplot(Contract_Tb, aes(x= ContractRenewal, y=Per_Renewal)) + 
+  geom_bar(aes(fill = Churn), stat="identity") +
+  facet_grid(~Churn)
+
+dataPlan_Tb<-  churnData %>% group_by(Churn,DataPlan) %>% summarise(Perc_Data_Opt = length(DataPlan)/nrow(churnData))
+ggplot(dataPlan_Tb, aes(x= DataPlan, y=Perc_Data_Opt)) + 
+  geom_bar(aes(fill = Churn), stat="identity") +
+  facet_grid(~Churn)
+
+churnOverDataUsage <-
+  churnData %>% group_by(Churn) %>% summarise(Avg_Data_Usage = mean(DataUsage))
+ggplot(churnOverDataUsage, aes(x = Churn, y = Avg_Data_Usage)) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Data_Usage),
+            position = position_dodge(width = 0),
+            vjust = 0)
+
+custCalls_Tb<-  churnData %>% group_by(Churn,CustServCalls) %>% summarise(Perc_Service_Calls = length(CustServCalls)/nrow(churnData))
+ggplot(custCalls_Tb, aes(x= CustServCalls, y=Perc_Service_Calls)) + 
+  geom_bar(aes(fill = Churn), stat="identity") +
+  facet_grid(~Churn)
+
+churnOverDayMins <-
+  churnData %>% group_by(Churn) %>% summarise(Avg_Day_Mins = round(mean(DayMins), 0))
+ggplot(churnOverDayMins, aes(x = Churn, y = Avg_Day_Mins )) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Day_Mins),
+            position = position_dodge(width = 0),
+            vjust = 0)
+
+churnOverDayCalls <-
+  churnData %>% group_by(Churn) %>% summarise(Avg_Day_Call = round(mean(DayCalls), 0))
+ggplot(churnOverDayCalls, aes(x = Churn, y = Avg_Day_Call )) + geom_bar(stat = "identity") + geom_text(aes(label = Avg_Day_Call),
+            position = position_dodge(width = 0),
+            vjust = 0)
+
+churnOverMonthlyCharges <-
+  churnData %>% group_by(Churn) %>% summarise(charge = round(mean(MonthlyCharge), 0))
+ggplot(churnOverMonthlyCharges, aes(x = Churn, y = charge )) + geom_bar(stat = "identity") + geom_text(aes(label = charge),
+            position = position_dodge(width = 0),
+            vjust = 0)
+
+churnOverOverUsageFee <-
+  churnData %>% group_by(Churn) %>% summarise(fee = round(mean(OverageFee), 0))
+ggplot(churnOverOverUsageFee, aes(x = Churn, y = fee )) + geom_bar(stat = "identity") + geom_text(aes(label = fee),
+            position = position_dodge(width = 0),
+            vjust = 0)
+
+churnOverRoaming <- 
+  churnData %>% group_by(Churn) %>% summarise(roaming = round(mean(RoamMins), 0))
+ggplot(churnOverRoaming, aes(x = Churn, y = roaming )) + geom_bar(stat = "identity") + geom_text(aes(label = roaming),
+            position = position_dodge(width = 0),
+            vjust = 0)
+```
+
+## Hypothesis Testing
+
+```{r, echo=F}
+t.test(AccountWeeks~Churn)
+t.test(DataUsage~Churn)
+t.test(DayMins~Churn)
+t.test(DayCalls~Churn)
+t.test(MonthlyCharge~Churn)
+t.test(OverageFee~Churn)
+t.test(RoamMins~Churn)
+```
+
+### Importane of Varaible
+```{r, echo=F}
+categoricalVaraible <- c("ContractRenewal", "DataPlan")
+CategoricalFeatures <- do.call('rbind', lapply(categoricalVaraible, WoE, data = churnData, 'Churn', F))
+(CategoricalFeatures <- CategoricalFeatures[order(-CategoricalFeatures$IV),])
+```
+
+## Model
+
+### Model 1:
+
+```{r, echo=F}
+
+set.seed(1)
+smp_size <- floor(0.70 * nrow(churnData))
+train_ind <- sample(seq_len(nrow(churnData)), size = smp_size)
+trainData <- churnData[train_ind, ]
+testData <- churnData[-train_ind, ]
+nrow(churnData)
+prop.table(table(churnData$Churn))
+nrow(trainData)
+prop.table(table(trainData$Churn))
+nrow(testData)
+prop.table(table(testData$Churn))
+
+model1 <- glm(Churn~., family = "binomial", data = trainData)
+summary(model1)
+stepAIC(model1)
+
+model2 <- glm(formula = Churn ~ ContractRenewal + DataPlan + CustServCalls + 
+    DayMins + OverageFee + RoamMins, family = "binomial", data = trainData)
+summary(model2)
+
+lrtest(model2)
+
+pR2(model2)
+
+trainData$Prediction <- predict(model2, newdata = trainData, type = "response")
+trainData$Prediction_Class <- ifelse(trainData$Prediction < 0.5, 0, 1)
+
+##Misclassification Error
+
+cm <- confusionMatrix(trainData$Churn, trainData$Prediction_Class)
+
+cm
 ```
