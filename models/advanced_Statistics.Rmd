@@ -1,0 +1,286 @@
+---
+title: "Advanced Statistics Assignment"
+author: "Vicky"
+date: "February 22, 2017"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+### Problem Statement is available at https://github.com/VickyVykciV/rProgramming/blob/master/problem_Statements/advance_Statistics.docx
+library(mvoutlier)
+library(car)
+```
+
+## Data Analysis
+
+### Data Structure
+```{r, echo=F}
+adData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Ad_Claim.csv", header = T)
+adData$superior <- as.factor(adData$superior)
+adData$unique <- as.factor(adData$unique)
+adData <- adData[, -1]
+str(adData)
+attach(adData)
+```
+
+## Assumptions of ANOVA
+
+### Test for Outliers
+
+Building a aq.plot to check for outliers
+
+```{r, echo=FALSE}
+set.seed(1)
+aq.plot(adData[c("Y1","Y2","Y3","Y4")])
+```
+
+**Result:** There are no outliers present in the data.
+
+### Test for Normal Distribution
+
+Conducting Shapiro Test to find out, if the dependent variables are Normaly distributed
+
+Ho : Data is Normaly Distributed
+
+Ha : Data is not Normaly Distributed
+
+```{r, echo=FALSE}
+shapiro.test(Y1)
+shapiro.test(Y2)
+shapiro.test(Y3)
+shapiro.test(Y4)
+```
+
+**Result:** P-value is always greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that all the dependent variable Y1, Y2, Y3 & Y4 are normally distributed.
+
+### Test for Homogeneity of Variance
+
+Conducting Levene's Test to find out, the Homogenity of dependent variables
+
+Ho : Variances across sample are same
+
+Ha : Variances across sample are not same
+
+- Superior
+
+```{r, echo=FALSE}
+leveneTest(Y1, superior)
+leveneTest(Y2, superior)
+leveneTest(Y3, superior)
+leveneTest(Y4, superior)
+```
+
+**Result:** P-values are always greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that all the dependent variable Y1, Y2, Y3 & Y4 are having same Variances across all samples.
+
+- Unique
+
+```{r, echo=FALSE}
+leveneTest(Y1, unique)
+leveneTest(Y2, unique)
+leveneTest(Y3, unique)
+leveneTest(Y4, unique)
+```
+
+**Result:** P-values are always greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that all the dependent variable Y1, Y2, Y3 & Y4 are having same Variances across all samples.
+
+## One-way ANOVA
+
+Let's conduct One-way ANOVA for each dependent variable,
+
+**Y1** - How much do you like this product? (from "Not at all" to "Very Much")
+
+**Y2** - I like this product (from "Strongly Disagree" to "Strongly agree")
+
+**Y3** - I would buy this product (from "Strongly Disagree" to "Strongly agree")
+
+**Y4** - What is the likelihood you would buy this product? (stated probability)
+
+across the factors **Unique** and **Superior**.
+
+- Test for Variance:
+
+Ho : Mean (average value of the dependent variable) is the same for all groups
+
+Ha : Mean (average value of the dependent variable) is not the same for all groups
+
+- Y1 vs Superior
+
+```{r, echo = F}
+model_Y1_Superior <- lm(Y1 ~ superior)
+anova(model_Y1_Superior)
+```
+
+**Result:**  P-value is greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority of the product, is not having an effect on the dependent variable Y1.
+
+- Y2 vs Superior
+
+```{r, echo = F}
+model_Y2_Superior <- lm(Y2 ~ superior)
+anova(model_Y2_Superior)
+```
+
+**Result:**  P-value is greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority of the product, is not having an effect on the dependent variable Y2.
+
+- Y3 vs Superior
+
+```{r, echo = F}
+model_Y3_Superior <- lm(Y3 ~ superior)
+anova(model_Y3_Superior)
+```
+
+**Result:**  P-value is greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority of the product, is not having an effect on the dependent variable Y3.
+
+- Y4 vs Superior
+
+```{r, echo = F}
+model_Y4_Superior <- lm(Y4 ~ superior)
+anova(model_Y4_Superior)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority of the product, is having an effect on the dependent variable Y4.
+
+- Y1 vs Unique
+
+```{r, echo = F}
+model_Y1_Unique <- lm(Y1 ~ unique)
+anova(model_Y1_Unique)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Uniqueness of the product, is having an effect on the dependent variable Y1.
+
+- Y2 vs Unique
+
+```{r, echo = F}
+model_Y2_Unique <- lm(Y2 ~ unique)
+anova(model_Y2_Unique)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Uniqueness of the product, is having an effect on the dependent variable Y2.
+
+- Y3 vs Unique
+
+```{r, echo = F}
+model_Y3_Unique <- lm(Y3 ~ unique)
+anova(model_Y3_Unique)
+```
+
+**Result:**  P-value is greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Uniqueness of the product, is not having an effect on the dependent variable Y3.
+
+- Y4 vs Unique
+
+```{r, echo = F}
+model_Y4_Unique <- lm(Y4 ~ unique)
+anova(model_Y4_Unique)
+```
+
+**Result:**  P-value is greater than 0.05, and so we cannot reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Uniqueness of the product, is not having an effect on the dependent variable Y4.
+
+```{r, echo=F}
+onewayAnovaMatrix <- matrix(c("Y1", "Has no effect", "Has effect", "Y2", "Has no effect", "Has effect", "Y3", "Has no effect", "Has no effect", "Y4", "Has effect", "Has no effect"),
+       nrow=4, ncol=3, byrow = T)
+colnames(onewayAnovaMatrix) <- c("Dependent Variable", "Superior", "Unique")
+onewayAnovaMatrix
+```
+
+## Interaction Effect
+
+Let's conduct One-way ANOVA for each dependent variable,
+
+**Y1** - How much do you like this product? (from "Not at all" to "Very Much")
+
+**Y2** - I like this product (from "Strongly Disagree" to "Strongly agree")
+
+**Y3** - I would buy this product (from "Strongly Disagree" to "Strongly agree")
+
+**Y4** - What is the likelihood you would buy this product? (stated probability)
+
+across the interaction effect of the factors **Unique** and **Superior**.
+
+- Test for Variance:
+
+Ho : Mean (average value of the dependent variable) is the same for all groups
+
+Ha : Mean (average value of the dependent variable) is not the same for all groups
+
+- Y1 vs Interaction of Superior & Unique
+
+```{r, echo = F}
+model_Y1_Interaction <- lm(Y1 ~ superior*unique)
+anova(model_Y1_Interaction)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority & Uniqueness of the product, is having an effect on the dependent variable Y1.
+
+- Y2 vs Interaction of Superior & Unique
+
+```{r, echo = F}
+model_Y2_Interaction <- lm(Y2 ~ superior*unique)
+anova(model_Y2_Interaction)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority & Uniqueness of the product, is having an effect on the dependent variable Y2.
+
+- Y3 vs Interaction of Superior & Unique
+
+```{r, echo = F}
+model_Y3_Interaction <- lm(Y3 ~ superior*unique)
+anova(model_Y3_Interaction)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority & Uniqueness of the product, is having an effect on the dependent variable Y3.
+
+- Y4 vs Interaction of Superior & Unique
+
+```{r, echo = F}
+model_Y4_Interaction <- lm(Y4 ~ superior*unique)
+anova(model_Y4_Interaction)
+```
+
+**Result:**  P-value is lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the Ad emphazing on Superiority & Uniqueness of the product, is having an effect on the dependent variable Y4.
+
+## Analysis of Variance of all Dependent variables together
+
+To conduct a test by considering all the dependent variables, we need to perform MANOVA (Mulivariate Analysis of Variance)
+
+## Analysis using Regression
+
+###Multiple Linear Regression on Y1
+
+```{r, echo=F}
+model1 <- lm(Y1~unique+superior+unique*superior, data = adData)
+plot(model1)
+summary(model1)
+```
+
+**Result:** The Adjusted R-Squared is 0.07, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+
+###Multiple Linear Regression on Y2
+
+```{r, echo=F}
+model2 <- lm(Y2~unique+superior+unique*superior, data = adData)
+plot(model2)
+summary(model2)
+```
+
+**Result:** The Adjusted R-Squared is 0.06, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+
+###Multiple Linear Regression on Y3
+
+```{r, echo=F}
+model3 <- lm(Y3~unique+superior+unique*superior, data = adData)
+plot(model3)
+summary(model3)
+```
+
+**Result:** The Adjusted R-Squared is 0.06, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+
+###Multiple Linear Regression on Y4
+
+```{r, echo=F}
+model4 <- lm(Y4~unique+superior+unique*superior, data = adData)
+plot(model4)
+summary(model4)
+```
+
+**Result:** The Adjusted R-Squared is 0.12, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
