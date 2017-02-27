@@ -12,9 +12,11 @@ library(mvoutlier)
 library(car)
 ```
 
-## Data Analysis
+## Question 1
 
-### Data Structure
+### Data Analysis
+
+- Data Structure
 ```{r, echo=F}
 adData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Ad_Claim.csv", header = T)
 adData$superior <- as.factor(adData$superior)
@@ -243,6 +245,12 @@ anova(model_Y4_Interaction)
 
 To conduct a test by considering all the dependent variables, we need to perform MANOVA (Mulivariate Analysis of Variance)
 
+```{r, echo=F}
+manova_model <- manova(cbind(Y1, Y2, Y3, Y4)~unique+superior, data = adData)
+summary.aov(manova_model)
+```
+The results are same as One-way ANOVA
+
 ## Analysis using Regression
 
 ###Multiple Linear Regression on Y1
@@ -253,7 +261,7 @@ plot(model1)
 summary(model1)
 ```
 
-**Result:** The Adjusted R-Squared is 0.07, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+**Result:** The Adjusted R-Squared is 0.07, which is very low. The factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
 
 ###Multiple Linear Regression on Y2
 
@@ -263,7 +271,7 @@ plot(model2)
 summary(model2)
 ```
 
-**Result:** The Adjusted R-Squared is 0.06, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+**Result:** The Adjusted R-Squared is 0.06, which is very low. The factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
 
 ###Multiple Linear Regression on Y3
 
@@ -284,3 +292,112 @@ summary(model4)
 ```
 
 **Result:** The Adjusted R-Squared is 0.12, which is very low. So, the factors Unique and Superior Ads cldn't do much of a impact on customers. But anyway the Ad emphazing both Unique and Superior qualities, do have an minimal impact on the customer's mind set.
+
+## Question 2
+
+### Data Analysis
+
+- Data Structure
+```{r, echo=F}
+evaluationData <- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Expectations_Evaluation.csv", header = T)
+evaluationData <- as.data.frame(sapply(evaluationData, sub, pattern='\\.', replacement = NA))
+evaluationData <- evaluationData[complete.cases(evaluationData),]
+evaluationData$Y1 <- as.numeric(evaluationData$Y1)
+evaluationData$Y2 <- as.numeric(evaluationData$Y2)
+evaluationData <- evaluationData[, -c(1,2)]
+str(evaluationData)
+attach(evaluationData)
+```
+## One-way ANOVA
+
+### Test for Variance:
+
+Ho : Mean (average value of the dependent variable) is the same for all groups
+
+Ha : Mean (average value of the dependent variable) is not the same for all groups
+
+### Quality Manipulation vs Evaluation of Magazine(Y1)
+
+```{r, echo=F}
+model_Y1_Quality <- lm(Y1~Quality.Manipulation)
+anova(model_Y1_Quality)
+summary(model_Y1_Quality)
+```
+**Result:**
+
+- ANOVA shows that p-value is lesser than 0.05, so we reject the NULL Hypothesis
+ 
+- Evaluation of Magazine, has different Mean for different Quality groups (Good & Bad)
+
+- And also we can see, when the Quality is manipulated as Good, then the readers have evaluated the article with good scores
+
+### Quality Manipulation vs Aggrement with Issue in the Article(Y2)
+
+```{r, echo=F}
+model_Y2_Quality <- lm(Y2~Quality.Manipulation)
+anova(model_Y2_Quality)
+```
+**Result:**
+
+- ANOVA shows that p-value is greater than 0.05, so we cannot reject the NULL Hypothesis
+ 
+- Aggrement with Issue in the Article, doesn't has different Mean for different Quality groups (Good & Bad)
+
+### Expectations Manipulation vs Evaluation of Magazine(Y1)
+
+```{r, echo=F}
+model_Y1_Expectations <- lm(Y1~Expectatations.Manipulation)
+anova(model_Y1_Expectations)
+```
+**Result:**
+
+- ANOVA shows that p-value is greater than 0.05, so we cannot reject the NULL Hypothesis
+ 
+- Evaluation of Magazine, doesn't has different Mean for different Expectations groups (Low & High)
+
+### Expectations Manipulation vs Aggrement with Issue in the Article(Y2)
+
+```{r, echo=F}
+model_Y2_Expectations <- lm(Y2~Expectatations.Manipulation)
+anova(model_Y2_Expectations)
+```
+**Result:**
+
+- ANOVA shows that p-value is greater than 0.05, so we cannot reject the NULL Hypothesis
+ 
+- Aggrement with Issue in the Article, doesn't has different Mean for different Expectations groups (Low & High)
+
+## One-way ANOVA on Interactions
+
+### Test for Variance:
+
+Ho : Mean (average value of the dependent variable) is the same for all groups
+
+Ha : Mean (average value of the dependent variable) is not the same for all groups
+
+### Quality Manipulation vs Evaluation of Magazine(Y1)
+
+```{r, echo=F}
+model_Y1_Interaction <- lm(Y1~Quality.Manipulation*Expectatations.Manipulation)
+anova(model_Y1_Interaction)
+summary(model_Y1_Interaction)
+```
+**Result:**
+
+- ANOVA shows that p-value is lesser than 0.05, so we reject the NULL Hypothesis
+ 
+- Evaluation of Magazine, has different Mean for different treatment combination
+
+- And also we can see, when the Quality is set as Good and Expectations is set as Low, then the readers have evaluated the article with good scores
+
+### Quality Manipulation vs Aggrement with Issue in the Article(Y2)
+
+```{r, echo=F}
+model_Y2_Interaction <- lm(Y2~Quality.Manipulation*Expectatations.Manipulation)
+anova(model_Y2_Interaction)
+```
+**Result:**
+
+- ANOVA shows that p-value is greater than 0.05, so we cannot reject the NULL Hypothesis
+ 
+- Aggrement with Issue in the Article, doesn't has different Mean for different treatment combination
