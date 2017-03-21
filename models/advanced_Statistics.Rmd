@@ -1,7 +1,7 @@
 ---
 title: "Advanced Statistics Assignment"
-author: "Vicky"
-date: "February 22, 2017"
+author: "Group 2"
+date: "March 01, 2017"
 output: slidy_presentation
 ---
 
@@ -10,6 +10,14 @@ knitr::opts_chunk$set(echo = FALSE)
 ### Problem Statement is available at https://github.com/VickyVykciV/rProgramming/blob/master/problem_Statements/advance_Statistics.docx
 library(mvoutlier)
 library(car)
+library(plyr)
+library(forecast)
+library(lsmeans)
+library(corrplot)
+library(MASS)
+library(dplyr)
+library(car)
+library(lsmeans)
 ```
 
 ## Question 1
@@ -401,3 +409,239 @@ anova(model_Y2_Interaction)
 - ANOVA shows that p-value is greater than 0.05, so we cannot reject the NULL Hypothesis
  
 - Aggrement with Issue in the Article, doesn't has different Mean for different treatment combination
+
+## Question 3
+
+### Data Analysis
+
+```{r, echo=F}
+Brand_X_Loyal<- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Brand_X.csv", header = T)
+str(Brand_X_Loyal)
+dim(Brand_X_Loyal)
+NApercentage<-sum(is.na(Brand_X_Loyal))/prod(dim(Brand_X_Loyal))
+NApercentage
+Brand_X_Loyal_Treated<-Brand_X_Loyal[complete.cases(Brand_X_Loyal),]
+dim(Brand_X_Loyal_Treated)
+attach(Brand_X_Loyal_Treated)
+## Converting all the variables into a log derivative this helps in calculating the percentage of impact on share X more precisely 
+colnames_data<-(colnames(Brand_X_Loyal_Treated))
+Brand_X_Loyal_Treated[colnames_data]<-lapply(Brand_X_Loyal_Treated[colnames_data],log)
+Brand_X_Loyal_Treated<-plyr::rename(Brand_X_Loyal_Treated, c("ï..Rel_price_lag5"="Rel_price_lag5"))
+```
+
+Now as the independent variables are ready lets look at the dependent variable 
+
+```{r,echo = F}
+hist(Brand_X_Loyal_Treated$Share_X)
+plot(density(Brand_X_Loyal_Treated$Share_X))
+qqnorm(Brand_X_Loyal_Treated$Share_X)
+qqline(Brand_X_Loyal_Treated$Share_X)
+```
+
+## Exploratory Analysis 
+ 
+```{r,echo = F}
+Corr_Matrix<-as.matrix(cor(Brand_X_Loyal_Treated[,-7]))
+Corr_Matrix
+corrplot(cor(Brand_X_Loyal_Treated[,-7]))
+```
+
+The graph and the matrix indicates that few variables are correlated with Share_X to a stronger degree compared to others 
+
+## Model building 
+
+### Model Summary
+
+```{r,echo = F}
+lm_model<-lm(Share_X~Rel_price_lag1+Rel_Price+Rel_price_lag5+Promo+Nonloy_HH+Loy_HH+Week,data = Brand_X_Loyal_Treated)
+summary(lm_model)
+```
+
+### Performing stepwise model selection by AIC
+
+```{r, echo=F}
+stepAIC(lm_model)
+```
+
+### Building Model based on the output of Step AIC
+
+```{r, echo=F}
+lm_model2<-lm(formula = Share_X ~ Rel_price_lag1 + Rel_price_lag5 + Promo + 
+    Nonloy_HH + Loy_HH + Week, data = Brand_X_Loyal_Treated)
+summary(lm_model2)
+```
+
+### Removing the insignificant variables
+
+- Removing **Promo**
+
+```{r, echo=F}
+lm_model3<-lm(formula = Share_X ~ Rel_price_lag1 + Rel_price_lag5 + 
+    Nonloy_HH + Loy_HH , data = Brand_X_Loyal_Treated)
+summary(lm_model3)
+```
+
+- Removing **Nonloy_HH**
+
+```{r, echo=F}
+lm_model4<-lm(formula = Share_X ~ Rel_price_lag1 + Rel_price_lag5 
+              + Loy_HH , data = Brand_X_Loyal_Treated)
+summary(lm_model4)
+```
+
+### ANOVA Summary
+```{r, echo = F}
+summary.aov(lm_model4)
+```
+
+**Result: ** Rel_price_lag1, Rel_price_lag5 & Loy_HH, all three components have P-value lesser than 0.05, and so we can reject the NULL hypothesis. Thus, it is evident that the these factors has different means across each group.
+
+### Variance Inflation Factors
+```{r, echo=F}
+vif_df<-vif(lm_model4)
+vif_df
+```
+
+a) We have transformed all the variable into their respective log derivatives in order to be able to express price elasticity concept. Correlation shows that  Rel_Price,Promo and Loyal_HH has significant correlation with Share X. We start building our model using all the independent variable available in the data. Post this we do stepAIC iteration and come to the interatio which has the minimum AIC value. We remove the non significant vraiable iteratively and then check for multi collinearity and if there remove the variable causing it. In our case no variable was removed at this step.
+The final independent variable in the model are 
+
+- Rel_Price_Lag1
+
+- Rel Price_Lag5
+
+- Loyal House hold  
+
+
+b) The model tells that Rel_Price_lag1, Loy_HH have positive impact wheras Rel_Price_lag5 has a negative impact. The model model elaborate the effect of eacg variable as follows
+
+- 1$ increase in the Rel_Price_lag1 increase the share X by 0.03%
+
+- for 1 unit increase in the shop trip of the loyal customer increase the market share percentage by 0.45%
+
+- 1$ increase in the Rel_Price_Lag5 decreases the s=percentage by 2.2%
+
+The model has a R2 value of 0.42 which means that this model is only able to explain 42% of the variability in the share percentage using the above factors
+
+
+```{r,echo = F}
+
+lm_model_week<-lm(formula = Share_X ~ Rel_price_lag1 + Rel_price_lag5 + Loy_HH+Week, 
+    data = Brand_X_Loyal_Treated)
+summary(lm_model_week)
+```
+
+c) The market share of brand X is increasing as the intercept which accounts for the change in market share keeping all other variable as constant is a having a positive estimate of 12.30
+
+d) The model has only two price related variables which are both lagged variables. The model tells that for 1$ increase in the price lagged by 1 the market share increases, whereas for 1$ increase in the price lagged by 5 the market share decreases. 
+
+```{r,echo = F}
+new_data = data.frame(Week = 157,Rel_Price = 100,Promo = 30,Loy_HH = 35,Nonloy_HH = 60,Rel_price_lag1 = 0,Rel_price_lag5 = 0)
+
+Forecast_model<-forecast.lm(lm_model4,new_data)
+Forecast_model
+```
+
+## Question 4 
+
+### Data Analysis
+
+```{r, echo=F}
+Bank_Wages<- read.csv("https://raw.githubusercontent.com/VickyVykciV/rProgramming/master/dataFiles/Bank_Wages.csv", header = T)
+str(Bank_Wages)
+dim(Bank_Wages)
+NApercentage<-sum(is.na(Bank_Wages))/prod(dim(Bank_Wages))
+NApercentage
+attach(Bank_Wages)
+```
+
+## Data Engineering on the Independent Variable 
+
+### Merging Education Details:
+
+Merging last 4 columns related to education into 1 single factor column "Education_Level"
+
+- If HS_Grad is 1 then Education_Level = 1
+
+- If College is 1 then Education_Level = 2
+
+- If Coll_Grad is 1 then Education_Level = 3
+
+- If Grad_Sch is 1 then Education_Level = 4
+
+```{r,echo=F}
+library(dplyr)
+Bank_Wages <- Bank_Wages%>%mutate(Education_Level = ifelse(HS_Grad == 1, 1, ifelse(College == 1, 2, ifelse(Coll_Grad == 1, 3, ifelse(Grad_Sch == 1, 4, 0)))))
+Bank_Wages$Education_Level <- factor(Bank_Wages$Education_Level, levels = c(1, 2, 3, 4), labels = c("HighSchoolGrad", "College", "CollegeGrad", "GradScholar"))
+Bank_Wages<-plyr::rename(Bank_Wages, c("ï..Sal_start"="Sal_start"))
+colnames(Bank_Wages)
+glimpse(Bank_Wages)
+```
+
+## Linear Model
+
+### Model to indicate the presence of gender discrimination 
+
+```{r,echo = F}
+lm_gender_discrimination<-lm(Salary_Now~Sal_start+as.factor(Sex)+Work_Exp+Age.at.Hire+                             Education+Seniority+Education_Level,data=Bank_Wages)
+summary(lm_gender_discrimination)
+```
+
+**Result:** The Model clearly shows that gender does have a negative impact on the salary and it is also a significant variables.
+
+### Hyphothesis Testing
+
+- Performing **lsmeans** analysis
+
+```{r,echo = F}
+Bank_Wages$Sex<-as.factor(Bank_Wages$Sex)
+glimpse(Bank_Wages)
+lsmeans(lm_gender_discrimination, "Sex")
+```
+
+**Result:** The difference in the mean keeping all other variables constant, clearly indicates that the **Salary** has been influenced by the **gender** of the employee
+
+### Influential Observation 
+
+```{r,echo = F, warning=F}
+plot(lm_gender_discrimination) #Cook's Distance  and the studentized residual plot indicates few variables which are influential 
+influenceIndexPlot(lm_gender_discrimination,id.n = 3,vars=c("Cook", "Studentized"))
+# Influential Observations
+# added variable plots 
+avPlots(lm_gender_discrimination)
+# Cook's D plot
+# identify D values > 4/(n-k-1) 
+cutoff <- 4/((nrow(Bank_Wages)-length(lm_gender_discrimination$coefficients)-2)) 
+plot(lm_gender_discrimination, which=4, cook.levels=cutoff)
+# Influence Plot 
+influencePlot(lm_gender_discrimination,	id.method="identify", main="Influence Plot", sub="Circle size is proportial to Cook's Distance" )
+```
+
+The plots indicate that observation no 9, 19, 12, 20, 32 are the influential variables by Cook's distance and Studentized residual plots, thus need to be removed from the model for more precise results. We rebuild the model by removing them and then again carry out LSMEANS analysis on it to check if our outputs stand true 
+
+
+
+```{r,echo=F}
+lm_gender_discrimination_2<-lm(Salary_Now~Sal_start+as.factor(Sex)+Work_Exp+Age.at.Hire+                             Education+Seniority+Education_Level,data=Bank_Wages[-c(9,12,19,20,32),])
+summary(lm_gender_discrimination_2)
+lm_ref_grid_1 <- ref.grid(lm_gender_discrimination_2)
+lm_ref_grid_1
+```
+
+The new model with the influential observations removed has improved results. With the new averages
+calculated for the variables to be controlled - Age.at.Hire, Work_Exp, Education and Seniority, lsmeans analysis is performed again. 
+
+```{r,echo=F}
+lsmeans(lm_gender_discrimination_2,"Sex")
+```
+The mean Current Salary grouped by Sex calclated from the original observations has a larger discrepancy due to differences in Age, Education, Experience and Seniority. The mean Current Salary calculated using lsmeans controls these differences by using the averages derived from the new model and hence the difference in mean Salary is reduced. 
+
+```{r,echo=F}
+plot(lm_gender_discrimination_2)
+influenceIndexPlot(lm_gender_discrimination_2,id.n = 3,vars=c("Cook", "Studentized"))
+avPlots(lm_gender_discrimination_2)
+influencePlot(lm_gender_discrimination_2,	id.method="identify", main="Influence Plot", sub="Circle size is proportial to Cook's Distance" )
+```
+
+In the new model, the Residuals Vs Leverage plot shows that all observations are within the Cook's distance. Removing the influencers has improved the adjusted R2 from 0.3274 to 0.5164. 
+It is also observed that Education and Seniority have a -ve slope. Seniority was not a significant predictor in the earlier model whereas it is significant at 95% confidence level in the new model. 
+
