@@ -46,3 +46,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 *.Rhistory
+dataFiles/train.h5
+models/script.R
+dataFiles/train.csv
