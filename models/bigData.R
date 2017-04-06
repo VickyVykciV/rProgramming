@@ -1,5 +1,4 @@
 #Installing and Adding libraries
-setwd(dir = "C:/Users/vignesh.venugopal/Documents/GitHub/rProgramming/")
 #source('https://bioconductor.org/biocLite.R')
 #biocLite('rhdf5')
 library(rhdf5)
@@ -8,11 +7,12 @@ library(dplyr)
 library(moments)
 library(corrplot)
 library(Boruta)
+library(caret)
 #source("http://goo.gl/UUyEzD")
 options(scipen=999)
 
 ## Reading the h5 file
-completeData <- h5read(file="dataFiles/train.h5", name="train")
+completeData <- h5read(file="train.h5", name="train")
 columns <- completeData$axis0
 completeData <- data.frame(as.double(completeData$block0_values[1,]), as.double(completeData$block0_values[2,]), t(completeData$block1_values))
 colnames(completeData) <- columns
@@ -131,11 +131,46 @@ testData <- imputedData[-train_ind, ]
 
 rm(imputedData, smp_size, train_ind)
 
+#MIR
+
+MIR_measurements <- trainData[,-ncol(trainData)]
+MIR_DER <- MIR_measurements- cbind(NA, MIR_measurements)[, -(dim(MIR_measurements)[2]+1)]
+X_train <- cbind(trainData[,-ncol(trainData)], MIR_DER[,-1])
+
+#Feature Selection using LASSO regression / RIDGE regression 
+library(devtools)
+ install_github('mlampros/FeatureSelection') 
+# 
+ library(FeatureSelection)
+ library(glmnet)
+ library(xgboost)
+ library(ranger)
+# 
+params_glmnet = list(alpha = 1, family = 'gaussian', nfolds = 3, parallel = TRUE)
+# 
+params_xgboost = list( params = list("objective" = "reg:linear", "bst:eta" = 0.01, "subsample" = 0.65, "max_depth" = 5, "colsample_bytree" = 0.65, "nthread" = 2),
+                    nrounds = 100, print.every.n = 50, verbose = 0, maximize = FALSE)
+# 
+ params_ranger = list(probability = FALSE, num.trees = 100, verbose = TRUE, classification = FALSE, mtry = 3, min.node.size = 10, num.threads = 2, importance = 'permutation')
+# 
+ params_features = list(keep_number_feat = NULL, union = TRUE)
+independentVar <- colnames(trainData[, -ncol(trainData)])
+p = trainData[, 'y']
+# 
+# feat = wrapper_feat_select(independentVar, p, params_glmnet = params_glmnet, params_xgboost = params_xgboost, params_ranger = params_ranger, xgb_sort = NULL,
+#                            CV_folds = 3, stratified_regr = FALSE, cores_glmnet = 2, params_features = params_features)
+# 
+feat = wrapper_feat_select(X_train, p, params_glmnet = params_glmnet, params_xgboost = params_xgboost, 
+                            
+                            params_ranger = params_ranger, xgb_sort = 'Gain', CV_folds = 5, stratified_regr = FALSE, 
+                            
+                            scale_coefs_glmnet = FALSE, cores_glmnet = 5, params_features = params_features)
+
 ## Starting a Spark Session
 
 config <- spark_config()
-config$spark.local.dir <- 'C:/Users/vignesh.venugopal/Documents/GitHub/rProgramming/models'
-sc <- spark_connect(master = "local", config = config)
+config$spark.local.dir <- '/home/sivaji/Desktop/Anisha/'
+sc <- spark_connect(master = "local", version = "2.0.2", config = config)
 
 ## Copying the Train and Test data to Spark
 
@@ -148,12 +183,9 @@ independentVar <- colnames(trainData[, -ncol(trainData)])
 fit <- trainDF%>%ml_linear_regression(response = 'y', features = independentVar)
 summary(fit)
 
-# fit1 <- lm(y~., data = trainData)
-# summary(fit1)
-# boruta.train <- Boruta(y~., data = trainData, doTrace = 2)
+fit1 <- lm(y~., data = trainData)
+impVar <- varImp(fit1, scale = F)
 
-rfModel <- ml_random_forest(trainDF, response = 'y', features = independentVar)
-summary(rfModel)
-
-xgboostModel <- ml_gradient_boosted_trees(trainDF, response = 'y', features = independentVar, type = 'regression')
-summary(xgboostModel)
+impVar[impVar$Overall > 1]
+#summary(fit1)
+#boruta.train <- Boruta(y~., data = trainData, doTrace = 2)
