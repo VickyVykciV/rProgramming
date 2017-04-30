@@ -1,0 +1,61 @@
+---
+title: "Grocery Store Recommendation Engine"
+author: "Group 7"
+date: "April 30, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(arules)
+library(arulesViz)
+```
+
+##Reading the data
+```{r, echo=F}
+data <- read.csv("https://raw.githubusercontent.com/vigneshvenugopal/rProgramming/master/dataFiles/GroceryStore_Transaction_Data.csv", header = T, sep = ",", colClasses = c('character', rep('factor', 4)))
+data <-  data[, -1]
+str(data)
+head(data)
+```
+
+##Converting the data into transaction data
+Since the data is in Basket Format, we have to convert into Single transaction data
+```{r, echo=F, warning=F}
+transactions <- as(split(rep(data[,"Product"], data[,"Quantity"]), data[,"Transaction"]), "transactions")
+```
+
+##Sample Transaction Data
+```{r, echo=F}
+inspect(head(transactions, 1))
+```
+##Transaction and Item counts
+```{r, echo=F}
+transactions
+```
+##Transaction Plots
+
+Displaying the top 10, most frequent items
+
+```{r, echo=F}
+itemFrequencyPlot(transactions, topN = 10, type = 'absolute')
+```
+
+##Finding the top 10 items sets, which has a minimum support of 1%
+
+```{r, echo=F, message=F}
+
+itemFrequency(transactions)
+
+rules_1 <- apriori(transactions, parameter = list(supp = 0.01))
+top.support <- sort(rules_1, decreasing = TRUE, na.last = NA, by = "support")
+inspect(head(top.support, 10))
+```
+
+##Of the above 10 items-sets, finding the items-sets with minimum confidence of 10%
+
+```{r, echo=F, message=F}
+rules_2 <- apriori(transactions, parameter = list(supp = 0.01, conf = 0.1))
+top.support <- sort(rules_2, decreasing = TRUE, na.last = NA, by = c("support", "confidence"))
+inspect(head(top.support, 10))
+```
