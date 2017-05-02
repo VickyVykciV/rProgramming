@@ -13,49 +13,84 @@ library(arulesViz)
 
 ##Reading the data
 ```{r, echo=F}
-data <- read.csv("https://raw.githubusercontent.com/vigneshvenugopal/rProgramming/master/dataFiles/GroceryStore_Transaction_Data.csv", header = T, sep = ",", colClasses = c('character', rep('factor', 4)))
-data <-  data[, -1]
-str(data)
-head(data)
+transactions = read.transactions("https://raw.githubusercontent.com/vigneshvenugopal/rProgramming/master/dataFiles/GroceryStore_Transaction_Data.csv", 
+                            format = "single", sep = ",",
+                          cols = c("Transaction", "Product"), rm.duplicates = T)
 ```
 
-##Converting the data into transaction data
-Since the data is in Basket Format, we have to convert into Single transaction data
-```{r, echo=F, warning=F}
-transactions <- as(split(rep(data[,"Product"], data[,"Quantity"]), data[,"Transaction"]), "transactions")
+##Inspect Data
+```{r, echo=F}
+inspect(head(transactions))
+summary(transactions)
 ```
+It is noted that 72% of the transactions have only one item. 17% of the transactions have 2 items. 
+The matrix of items against transactions is sparse with a density of 0.08. 
+In the given dataset, a transaction contains only 1.43 items on an average.
 
-##Sample Transaction Data
-```{r, echo=F}
-inspect(head(transactions, 1))
-```
-##Transaction and Item counts
-```{r, echo=F}
-transactions
-```
+
 ##Transaction Plots
-
-Displaying the top 10, most frequent items
+### Top 10, most frequent items
 
 ```{r, echo=F}
-itemFrequencyPlot(transactions, topN = 10, type = 'absolute')
+itemFrequencyPlot(transactions, topN=10)
+itemFrequencyPlot(transactions, support=0.01, topN=10)
 ```
 
-##Finding the top 10 items sets, which has a minimum support of 1%
+The top 10 items, with the support of 1% are
 
-```{r, echo=F, message=F}
+Magazine, Candy Bar, Toothpaste, Greeting Cards, Pens, Pencils, Perfume, Toothbrush, Wrapping Paper & Photo Processing
 
-itemFrequency(transactions)
+### Running apriori rules on the above mentioned items with a confidence of 10%
 
-rules_1 <- apriori(transactions, parameter = list(supp = 0.01))
-top.support <- sort(rules_1, decreasing = TRUE, na.last = NA, by = "support")
-inspect(head(top.support, 10))
+To avoid single item recommendations that are not very useful, we specify minlen = 2
+
+```{r}
+rule <- apriori(data=transactions, parameter=list(supp=0.01,conf = 0.1, minlen=2),
+                           appearance = list(default="lhs",
+                           both = c("Magazine", "Candy Bar", "Toothpaste","Greeting Cards",
+                                    "Pens","Pencils","Perfume","Toothbrush","Wrapping Paper",
+                                    "Photo Processing")),
+                           control = list(verbose=T))
 ```
 
-##Of the above 10 items-sets, finding the items-sets with minimum confidence of 10%
+###Sorting the rules based on the LIFT attained
 
+```{r}
+inspect(sort(rule, by="lift"))
+```
+There are 49 item sets with minimum support value of 1% and minimum confidence level of 10%
+
+### Understanding association rules
+A common approach is to take the result of learning association rules and divide them into three categories
+
+Actionable - The goal of a market basket analysis is to find actionable associations, or rules that provide a clear and useful insight. Some rules are clear, others are useful; it is less common to find a combination of both of these factors.
+
+Trivial - Any rules that are so obvious that they are not worth mentioning, they are clear, but not useful.
+
+Inexplicable - If the connection between the items is so unclear that figuring out how to use the information for action would require additional research
+
+
+### Deeper Look
+```{r}
+inspect(sort(rule, by = "lift")[1:10])
+```
+
+
+The first rule, with a lift of 3.06, implies that people who buy Perfumes are nearly three times more likely to buy Toothbrush than the typical customer and vice-versa also stands true
+
+### Recommendataions
+Item set with LIFT atleast 1, only should be recommended
+
+Based on the RHS item, the item set combination which gives the highest LIFT is recommended, please see the example below mentioned for Toothbrush and Candy Bar
+
+###Subset of Assocaition Rule
+
+```{r}
+ruleSubset = subset(rule, items %in% c("Toothbrush","Candy Bar"))
+inspect(sort(ruleSubset, by = "lift")[1:10])
+```
+
+### Association rules - Scatter Plot
 ```{r, echo=F, message=F}
-rules_2 <- apriori(transactions, parameter = list(supp = 0.01, conf = 0.1))
-top.support <- sort(rules_2, decreasing = TRUE, na.last = NA, by = c("support", "confidence"))
-inspect(head(top.support, 10))
+plot(rule)
 ```
